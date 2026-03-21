@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DYSMANTLE 交互式地图</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:      #08090b;
+    --panel:   #10141a;
+    --panel2:  #161c26;
+    --border:  #1e2a3a;
+    --accent:  #d4952a;
+    --accent2: #4cc9f0;
+    --red:     #ef4444;
+    --gold:    #fbbf24;
+    --purple:  #a78bfa;
+    --green:   #4ade80;
+    --blue:    #60a5fa;
+    --text:    #c8d4e0;
+    --dim:     #4a5c72;
+    --radius:  4px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Noto Sans SC', sans-serif; }
+
+  /* ── LAYOUT ─────────────────────────────────── */
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── TOP BAR ─────────────────────────────────── */
+  #topbar {
+    flex-shrink: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 14px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1000;
+  }
+  #topbar::after {
+    content:'';
+    position:absolute; bottom:0; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent) 70%, transparent);
+    opacity: .4;
+  }
+  .logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .logo-sub { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-left: 8px; font-weight: 400; }
+
+  .sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+  /* filter chips */
+  .filters { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 9px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: 'Noto Sans SC', sans-serif;
+    white-space: nowrap;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .chip.on  { background: rgba(255,255,255,.05); color: var(--text); border-color: rgba(255,255,255,.15); }
+  .chip:hover { border-color: var(--accent); }
+
+  .ml-auto { margin-left: auto; }
+  .coord-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    min-width: 160px;
+    text-align: center;
+  }
+
+  /* ── BODY ─────────────────────────────────── */
+  #body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ── LEFT SIDEBAR ─────────────────────────────── */
+  #sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-title {
+    padding: 8px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #regionList { overflow-y: auto; flex: 1; }
+  #regionList::-webkit-scrollbar { width: 3px; }
+  #regionList::-webkit-scrollbar-thumb { background: var(--border); }
+  .ritem {
+    padding: 7px 12px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all .12s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid rgba(30,42,58,.5);
+  }
+  .ritem:hover { background: rgba(212,149,42,.06); border-left-color: rgba(212,149,42,.4); }
+  .ritem.active { background: rgba(212,149,42,.1); border-left-color: var(--accent); }
+  .rdot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .rname { font-size: 12px; font-weight: 700; }
+  .ren   { font-size: 10px; color: var(--dim); }
+
+  /* ── MAP ─────────────────────────────────── */
+  #map { flex: 1; }
+
+  /* Leaflet overrides */
+  .leaflet-container { background: #060810; }
+  .leaflet-control-zoom { border: 1px solid var(--border) !important; background: var(--panel) !important; }
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    font-size: 16px !important;
+    line-height: 26px !important;
+  }
+  .leaflet-control-zoom a:hover { background: var(--panel2) !important; color: var(--accent) !important; }
+
+  /* ── POPUP ─────────────────────────────────── */
+  .leaflet-popup-content-wrapper {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,.6) !important;
+    color: var(--text) !important;
+    padding: 0 !important;
+    min-width: 240px;
+    max-width: 320px;
+  }
+  .leaflet-popup-tip { background: var(--border) !important; }
+  .leaflet-popup-content { margin: 0 !important; }
+  .popup-inner { padding: 12px 14px; }
+  .popup-type {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+  .popup-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 2px;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: .5px;
+  }
+  .popup-region { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+  .popup-coords { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent2); margin-bottom: 8px; }
+  .popup-desc { font-size: 12px; line-height: 1.6; color: var(--text); }
+  .popup-divider { height: 1px; background: var(--border); margin: 10px 0; }
+  .popup-quest-title { font-size: 12px; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
+  .popup-step {
+    font-size: 11px;
+    color: var(--dim);
+    padding: 2px 0 2px 12px;
+    position: relative;
+    line-height: 1.55;
+  }
+  .popup-step::before { content: '▸'; position:absolute; left:0; color: var(--accent2); font-size:9px; top:3px; }
+  .popup-reward { margin-top:7px; font-size:11px; color: var(--gold); padding-left:4px; }
+  .popup-reward::before { content: '✦ 奖励: '; }
+  .popup-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    margin-bottom: 6px;
+  }
+  .badge-main   { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
+  .badge-side   { background: rgba(96,165,250,.15);  color: #60a5fa; border: 1px solid rgba(96,165,250,.3); }
+  .badge-key    { background: rgba(239,68,68,.15);   color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+
+  /* ── RIGHT PANEL ─────────────────────────────── */
+  #questPanel {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #questPanelTitle {
+    padding: 8px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #questList { overflow-y: auto; flex: 1; padding: 8px; }
+  #questList::-webkit-scrollbar { width: 3px; }
+  #questList::-webkit-scrollbar-thumb { background: var(--border); }
+  .qcard {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 7px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+  .qcard:hover { border-color: rgba(212,149,42,.4); }
+  .qcard.highlight { border-color: var(--accent) !important; box-shadow: 0 0 10px rgba(212,149,42,.2); }
+  .qcard-head {
+    padding: 8px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,.02);
+  }
+  .qcard-head:hover { background: rgba(255,255,255,.04); }
+  .qtype { font-size: 9px; padding: 1px 5px; border-radius: 2px; flex-shrink: 0; }
+  .qcard-name { font-size: 12px; font-weight: 700; flex: 1; }
+  .qcard-area { font-size: 10px; color: var(--dim); flex-shrink: 0; }
+  .qcard-body { padding: 0 10px 9px; display: none; }
+  .qcard-body.open { display: block; }
+  .qcard-coord { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--accent2); margin-bottom: 5px; margin-top: 4px; }
+  .qstep { font-size: 11px; color: var(--dim); padding: 2px 0 2px 12px; position: relative; line-height: 1.5; }
+  .qstep::before { content:'▸'; position:absolute; left:0; color: var(--accent2); font-size:9px; top:3px; }
+  .qreward { margin-top:6px; font-size:11px; color: var(--gold); }
+  .qreward::before { content:'✦ 奖励: '; }
+  .empty-msg { padding: 20px; text-align: center; color: var(--dim); font-size: 12px; }
+
+  /* Custom marker icons */
+  .map-icon-wrap {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    background: rgba(0,0,0,.65);
+    transition: transform .1s;
+  }
+  .map-icon-wrap img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    top: 10px; left: 10px;
+    z-index: 900;
+    background: rgba(10,14,20,.92);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    pointer-events: none;
+  }
+  .legend-title { font-family: 'Rajdhani', sans-serif; font-size: 11px; letter-spacing:2px; text-transform: uppercase; color: var(--accent); margin-bottom: 7px; }
+  .legend-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; font-size: 11px; color: var(--dim); }
+  .legend-icon { width: 18px; height: 18px; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">DYSMANTLE <span class="logo-sub">交互式地图 · 主岛</span></div>
+    <div class="sep"></div>
+    <div class="filters" id="filterBar"></div>
+    <div class="ml-auto"></div>
+    <div class="coord-display" id="coordDisplay">坐标: — , —</div>
+  </div>
+
+  <!-- BODY -->
+  <div id="body">
+
+    <!-- LEFT: Region list -->
+    <div id="sidebar">
+      <div class="sidebar-title">▸ 地图区域</div>
+      <div id="regionList"></div>
+    </div>
+
+    <!-- MAP -->
+    <div id="map"></div>
+
+    <!-- RIGHT: Quest panel -->
+    <div id="questPanel">
+      <div id="questPanelTitle">▸ 全部任务攻略</div>
+      <div id="questList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ════════════════════════════════════════════════
+// COORDINATE SYSTEM
+// ogmods uses L.CRS.Simple
+// maxBounds: [[0,0],[-384,768]]  (lat goes negative = south, lng positive = east)
+// mapNativeMaxZoom = 5
+// Conversion: gameX° → pixel_x = gameX * 12.8  (at zoom 5)
+//             gameY° → pixel_y = gameY * 12.8
+// Then: latlng = map.unproject([px, py], 5)
+// ════════════════════════════════════════════════
+const TILE_BASE   = 'https://ogmods.github.io/dysmantle-map/tiles/{z}/{x}/{y}.jpg';
+const ICON_BASE   = 'https://ogmods.github.io/dysmantle-map/images/icons/';
+const NATIVE_ZOOM = 5;
+const RATIO       = 12.8;           // game units → pixels at zoom 5
+
+// Leaflet map bounds
+const SW = [-384, 0];
+const NE = [0,  768];
+
+// ── MAP INIT ──────────────────────────────────────
+const map = L.map('map', {
+  crs:              L.CRS.Simple,
+  maxZoom:          7,
+  minZoom:          1,
+  maxBounds:        [SW, NE],
+  maxBoundsViscosity: 0.7,
+  attributionControl: false,
+  zoomControl:      true,
+});
+map.fitBounds([SW, NE]);
+
+// Tile layer
+L.tileLayer(TILE_BASE, {
+  maxNativeZoom: NATIVE_ZOOM,
+  minNativeZoom: 1,
+  tms: false,
+  bounds: [SW, NE],
+  errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+}).addTo(map);
+
+// Coordinate display on mousemove
+map.on('mousemove', e => {
+  const pt = map.project(e.latlng, NATIVE_ZOOM);
+  const gx = Math.round(pt.x / RATIO);
+  const gy = Math.round(pt.y / RATIO);
+  document.getElementById('coordDisplay').textContent = `坐标: ${gx}°, ${gy}°`;
+});
+
+// ── COORDINATE CONVERSION ──────────────────────
+function gameToLatLng(gx, gy) {
+  // gx, gy are in game-unit degrees
+  const px = gx * RATIO;
+  const py = gy * RATIO;
+  return map.unproject([px, py], NATIVE_ZOOM);
+}
+
+// ── ICON FACTORY ──────────────────────────────────
+const iconCache = {};
+function mkIcon(name, color) {
+  const key = name + color;
+  if (iconCache[key]) return iconCache[key];
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="map-icon-wrap" style="color:${color};border-color:${color}">
+             <img src="${ICON_BASE}${name}.png" onerror="this.style.display='none'"/>
+           </div>`,
+    iconSize:   [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor:[0, -18],
+  });
+  iconCache[key] = icon;
+  return icon;
+}
+
+// ════════════════════════════════════════════════
+// QUEST DATA
+// ════════════════════════════════════════════════
+const QUESTS = {
+  q_crowbar:    { type:'side', name:'撬棍摧毁障碍',   en:'Crowbar Through Obstacles',   steps:['找废金属×2、废木料×5','在营火升级撬棍','摧毁堵住门口的柜子（1335°,537°）'], reward:'600 XP' },
+  q_basic:      { type:'side', name:'初级必需品',     en:'Basic Necessities',            steps:['找到链塔(1391°,527°)','升级背包（植物物质×10，废织物×4）','提升人物等级'], reward:'1000 XP' },
+  q_stronger:   { type:'side', name:'变强',           en:'Getting Stronger',             steps:['制作烹饪锅（废金属×8，陶瓷×5）','烹饪番茄汤（食谱在1371°,513°）','发明飞刀'], reward:'1500 XP' },
+  q_basketball: { type:'side', name:'棒球',           en:'Fast Basketball',              steps:['在60秒内击败5个敌人'], reward:'3000 XP' },
+  q_buried:     { type:'side', name:'埋藏宝藏',       en:'Buried Treasures',             steps:['获取藏宝地图','挖掘 1430°,533°','挖掘 1413°,548°','需铁锹（LV.4）'], reward:'3500 XP' },
+  q_farming:    { type:'side', name:'初级农作物',     en:'Farming Basics',               steps:['发明种子袋（LV.5）','种植种子（玉米在1488°,465°箱）','收获农作物'], reward:'4500 XP' },
+  q_building:   { type:'key',  name:'建筑工程',       en:'Construction Work',            steps:['发明建筑工具（LV.9）','建造3×3混泥土平台','建造木墙/门/家具','建造木门（需稀有木材）'], reward:'归家传送门秘诀 + 1500 XP' },
+  q_fishing:    { type:'side', name:'钓鱼',           en:'Fish You Were Here',           steps:['发明鱼竿（LV.6，废木料×16）','钓3条鱼（任何水域均可）'], reward:'4500 XP' },
+  q_haymaker:   { type:'side', name:'干草机',         en:'Haymaker',                     steps:['75秒内击败6个敌人'], reward:'5000 XP' },
+  q_shipment:   { type:'side', name:'运输',           en:'Phony Shipment',               steps:['找路边病房贮存钥匙（1214°,364°）','打开1247°,401°上锁的门'], reward:'5000 XP' },
+  q_terminal_n: { type:'key',  name:'破碎的北航站楼', en:'Broken Northern Terminal',     steps:['带废弃电子×8、橡胶×5','修理终端（1172°,369°）','完成后打开大门→爱尔兰'], reward:'8500 XP（解锁爱尔兰）' },
+  q_graveyard:  { type:'side', name:'墓地',           en:'Graveyard Shift',              steps:['铁锹挖掘1479°,637°→墓地钥匙','打开1467°,630°的大门'], reward:'6000 XP' },
+  q_plague:     { type:'side', name:'瘟疫',           en:'Mortar And Pestilence',        steps:['80秒内击败5个敌人'], reward:'5500 XP' },
+  q_wolves:     { type:'side', name:'猎狼',           en:'Wolves Hunt In Packs',         steps:['65秒内击败4个敌人'], reward:'5500 XP' },
+  q_prison:     { type:'key',  name:'闯入监狱',       en:'Prison Break-In',              steps:['阅读1430°,146°线索','前往柴火警察局1522°,363°取钥匙','返回北欧化工进入监狱（含燃料电池）'], reward:'15000 XP（关键主线道具）' },
+  q_northern:   { type:'side', name:'北境人气',       en:'Only A Northern Throng',       steps:['75秒内击败5个敌人'], reward:'5000 XP' },
+  q_trash:      { type:'side', name:'无尽垃圾',       en:'Endless Trash',                steps:['搜索蓝色垃圾1117°,351°','搜索轮胎1116°,317°','挖掘1009°,290°取钥匙','打开1125°,354°的门'], reward:'12300 XP' },
+  q_sawmill:    { type:'side', name:'初级锯木厂',     en:'Sawmill Building Basics',      steps:['建造锯木厂（铁×20、橡胶×8、废弃电子×5）'], reward:'10000 XP' },
+  q_bridge:     { type:'side', name:'天桥',           en:'A Bridge Too Far',             steps:['锯木厂合成稀有木材×6','修复桥梁（1065°,222°）'], reward:'17500 XP' },
+  q_terminal_s: { type:'key',  name:'损坏的南方终端', en:'Broken Southern Terminal',     steps:['带废弃电子×5、橡胶×8','修理终端，打开大门→峡谷南部'], reward:'8500 XP（解锁峡谷）' },
+  q_getaway:    { type:'side', name:'逃跑路径',       en:'Getaway Cut Short',            steps:['在办公室1150°,675°找"房间号4"提示','在马桶1148°,679°找车钥匙','检查停车场广告牌','搜索橙色面包车1101°,589°→武士刀'], reward:'武士刀秘诀 + 21500 XP' },
+  q_snowfield:  { type:'side', name:'雪地',           en:'You Rip What You Sow',         steps:['通过陷阱小路到农场','阅读991°,594°提示','挖掘四棵头骨树（1091°、1093°、1100°、1104°）'], reward:'9000 XP' },
+  q_brokentwr:  { type:'side', name:'破碎链塔',       en:'Broken Link Tower',            steps:['前往钢铁工厂878°,598°','冶金厂合成钛×10、钢×10','修理链塔1048°,597°'], reward:'5000 XP' },
+  q_voyage:     { type:'side', name:'返航',           en:'Con Voyage',                   steps:['与775°,697°吉普车互动','找失落车队735°,697°','搜索3辆面包车','在782°,779°找车辆→神力碎片'], reward:'神力碎片×1 + 10000 XP' },
+  q_nowhere:    { type:'key',  name:'无路可走',       en:'On The Track To Nowhere',      steps:['先完成第一次远征（防毒面具）','完成天路→北极快递','经索拉里斯煤气店570°,593°取火车部件','修理637°,647°火车','坐火车→索拉里斯南部','点燃283°,610°营火'], reward:'22000 XP（解锁索拉里斯南部）' },
+  q_money:      { type:'side', name:'金钱',           en:'Dirty Money',                  steps:['阅读565°,737°信件','前往553°,699°照片地点','找枯树533°,730°','挖掘570°,714°宝藏（棒球场右上）'], reward:'20000 XP' },
+  q_expedition: { type:'key',  name:'第一次远征',     en:'The First Expedition',         steps:['到愚人峡谷收听9处音频日志','击败蛇工火山口神殿BOSS老冠军','搜索防毒面具秘诀'], reward:'防毒面具秘诀 + 15000 XP' },
+  q_laststand:  { type:'side', name:'最终坚守',       en:'The Last Stand',               steps:['装备防毒面具进入中枢','进入先驱公园720°,438°','取市政厅钥匙828°,440°','开门后击败BOSS Skinless Skulkers'], reward:'锤子秘诀 + 36800 XP' },
+  q_forward:    { type:'key',  name:'天路',           en:'A Way Forward',                steps:['铁路中心662°,455°接任务','搜索物美商场686°,409°文件柜','深谷754°,470°取火车动力装置','安装到660°,453°火车'], reward:'30000 XP（解锁北极快递）' },
+  q_polexp:     { type:'key',  name:'北极快递',       en:'The Polaris Express',          steps:['完成天路','发明皮帽+冬季外套+热水瓶','装备三件后乘火车','在500°,198°点燃春天站台营火'], reward:'12000 XP（解锁西部地区）' },
+  q_foul:       { type:'side', name:'严重犯规',       en:'Foul Play',                    steps:['装备棒球棒+棒球帽+棒球卡','80秒消灭12个敌人（含呕吐怪/追捕者）'], reward:'44000 XP' },
+  q_port:       { type:'side', name:'港口',           en:'Port Of Call',                 steps:['前往西港链塔352°,444°','通过管道340°,446°到海军工厂','搜索281°,483°箱子→盾牌秘诀'], reward:'盾牌秘诀 + 41000 XP' },
+  q_scavenger:  { type:'side', name:'追捕清道夫',     en:'Scavenger Hunt',               steps:['绿咖啡机952°', '红电视945°', '蓝散热器929°', '橙墓碑921°', '黄钟863°', '挖掘836°,110°宝藏'], reward:'20000 XP' },
+  q_fangman:    { type:'side', name:'村庄',           en:'The Fangman Cometh',           steps:['发明獠牙（LV.20，骨头×15、橡胶×20）','装备獠牙','65秒击败4波11个敌人'], reward:'3000 XP' },
+  q_ark:        { type:'key',  name:'方舟',           en:'The Ark',                      steps:['进入方舟查看收集项','完成所有收集要求','进入方舟第二层','方舟钥匙在王冠1036°,499°隧道'], reward:'50000 XP（解锁神力拳套工厂）' },
+  q_smallkey:   { type:'side', name:'小钥匙开大门',   en:'A Small Key Opens Big Doors',  steps:['阅读文件→公共建筑522°,231°','前往防御小屋779°,235°','取微波炉钥匙','去链塔566°,129°开大门'], reward:'30000 XP' },
+  q_fab:        { type:'side', name:'初级加工厂',     en:'Fabricator Basics',            steps:['启动加工厂480°,121°','制作老式怀表（铁×20、废金属×30、神力珠×20）'], reward:'10000 XP' },
+  q_mansion:    { type:'side', name:'宅邸',           en:'Maniac Mansion',               steps:['搜索四处书架获密码','密码=0451','在423°,380°密码锁开门'], reward:'神力碎片×1 + 18800 XP' },
+  q_coolhead:   { type:'side', name:'头冷脚热',       en:'Cool Head, Hot Feet',          steps:['阅读270°,621°提示','前往外星农场524°,671°','检查邮箱441°,634°','搜索面包车388°,651°→沙漠头盔'], reward:'沙漠头盔秘诀 + 6000 XP' },
+  q_displaced:  { type:'key',  name:'取代',           en:'Displaced',                    steps:['制造厂239°,815°制作电子手腕表','进入发光裂隙','140秒内击败5波古墓守卫（传送各地）'], reward:'裂谷工具包秘诀 + 35000 XP' },
+  q_floodgates: { type:'side', name:'打开闸门',       en:'Open The Floodgates',          steps:['阅读278°,236°提示','峡湾村230°,160°水槽取钥匙','控制室降低水位257°,244°'], reward:'26000 XP' },
+  q_under:      { type:'key',  name:'地下出路',       en:'Under and Out',                steps:['操作终端1009°,346°解锁闸门','前往982°,351°电梯进入王冠'], reward:'20000 XP（解锁王冠）' },
+  q_kingslog:   { type:'side', name:'国王的日志',     en:"King's Log",                   steps:['收听902°,430°', '881°,466°', '878°,502°', '963°,477°', '1011°,480°（需发射台钥匙）共5处音频'], reward:'10000 XP' },
+  q_leak:       { type:'side', name:'山峰上的泄漏',   en:'Leak at the Peak',             steps:['乘无人机到春峰营火','取门禁卡1146°,484°','终端开门1162°,499°','搜索烤鲶鱼菜谱'], reward:'烤鲶鱼菜谱 + 87500 XP' },
+  q_volcanic:   { type:'key',  name:'火山踪迹',       en:'Volcanic Trail',               steps:['点亮183°,573°营火','修复终端158°,529°（废弃电子×5、橡胶×5）','取火山通道钥匙140°,552°','上山至火山口150°,449°'], reward:'33600 XP' },
+};
+
+// ════════════════════════════════════════════════
+// MARKER DEFINITIONS
+// Format: { type, icon, color, gx, gy, name, region, detail, questId? }
+// gx/gy are GAME coordinates (degrees)
+// ════════════════════════════════════════════════
+const MARKER_DEFS = [
+  // ── CAPERNAUM (迦百农) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1335, gy:530, name:'迦百农营火·起始', region:'迦百农', detail:'游戏起始营火' },
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1380, gy:518, name:'迦百农营火·东区', region:'迦百农', detail:'第二营火，附近有番茄食谱' },
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1419, gy:525, name:'迦百农营火·守门', region:'迦百农', detail:'靠近守门人区域' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1372, gy:528, name:'迦百农链塔', region:'迦百农', detail:'激活后开启区域地图与传送门' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1335, gy:540, name:'撬棍摧毁障碍', region:'迦百农', detail:'支线任务接取点', questId:'q_crowbar', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1365, gy:518, name:'初级必需品', region:'迦百农', detail:'支线任务接取点', questId:'q_basic', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1419, gy:514, name:'变强', region:'迦百农', detail:'支线任务接取点', questId:'q_stronger', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1362, gy:537, name:'棒球', region:'迦百农', detail:'60秒击败5敌人', questId:'q_basketball', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1425, gy:537, name:'埋藏宝藏', region:'迦百农', detail:'寻找藏宝图挖掘宝藏', questId:'q_buried', questType:'side' },
+  { type:'boss',     icon:'icon-boss',  color:'#ef4444', gx:1444, gy:527, name:'BOSS: 迦百农守门人', region:'迦百农', detail:'教学关最终BOSS' },
+  { type:'treasure', icon:'icon-buried-treasure', color:'#fbbf24', gx:1430, gy:533, name:'宝藏挖掘点A', region:'迦百农', detail:'埋藏宝藏任务' },
+  { type:'treasure', icon:'icon-buried-treasure', color:'#fbbf24', gx:1413, gy:548, name:'宝藏挖掘点B', region:'迦百农', detail:'埋藏宝藏任务' },
+
+  // ── CANAVERAL (卡纳维拉尔) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1484, gy:463, name:'卡纳维拉尔营火', region:'卡纳维拉尔', detail:'农场附近营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1500, gy:450, name:'卡纳维拉尔链塔', region:'卡纳维拉尔', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1484, gy:463, name:'初级农作物', region:'卡纳维拉尔', detail:'发明种子袋，种植作物', questId:'q_farming', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:1605, gy:457, name:'建筑工程', region:'卡纳维拉尔', detail:'关键支线：获得归家传送门秘诀', questId:'q_building', questType:'key' },
+  { type:'farmable', icon:'icon-farmable', color:'#4ade80', gx:1488, gy:465, name:'农场(玉米/蔬菜)', region:'卡纳维拉尔', detail:'种植区域，箱内有玉米×4' },
+
+  // ── FAIRWOOD (柴火) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1299, gy:377, name:'柴火营火·北', region:'柴火', detail:'柴火北区营火' },
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1252, gy:400, name:'柴火营火·路边', region:'柴火', detail:'路边病房附近' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1310, gy:380, name:'柴火链塔', region:'柴火', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1299, gy:377, name:'钓鱼', region:'柴火', detail:'发明鱼竿，钓3条鱼', questId:'q_fishing', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1431, gy:451, name:'干草机', region:'柴火', detail:'75秒击败6敌人', questId:'q_haymaker', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1252, gy:400, name:'运输', region:'柴火', detail:'找储存钥匙', questId:'q_shipment', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:1175, gy:369, name:'破碎的北航站楼', region:'柴火', detail:'关键支线：修复终端开启爱尔兰', questId:'q_terminal_n', questType:'key' },
+  { type:'fishing',  icon:'icon-fishing-spot', color:'#38bdf8', gx:1290, gy:355, name:'柴火钓鱼点', region:'柴火', detail:'附近水域' },
+
+  // ── HEDGEFIELD (篱笆地) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1487, gy:626, name:'篱笆地营火·墓地', region:'篱笆地', detail:'守墓人家附近' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1500, gy:620, name:'篱笆地链塔', region:'篱笆地', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1487, gy:626, name:'墓地', region:'篱笆地', detail:'找墓地钥匙进入墓地', questId:'q_graveyard', questType:'side' },
+  { type:'treasure', icon:'icon-buried-treasure', color:'#fbbf24', gx:1479, gy:637, name:'墓地钥匙挖掘点', region:'篱笆地', detail:'铁锹挖掘获钥匙' },
+
+  // ── EVERGLADE (沼泽草地) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1602, gy:749, name:'沼泽草地营火', region:'沼泽草地', detail:'沼泽区营火' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1602, gy:749, name:'瘟疫', region:'沼泽草地', detail:'80秒击败5敌人', questId:'q_plague', questType:'side' },
+
+  // ── BOREALIS (北欧化工) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1298, gy:255, name:'北欧化工营火', region:'北欧化工', detail:'北欧化工区营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1310, gy:260, name:'北欧化工链塔', region:'北欧化工', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1298, gy:255, name:'猎狼', region:'北欧化工', detail:'65秒击败4敌人', questId:'q_wolves', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:1427, gy:144, name:'闯入监狱', region:'北欧化工', detail:'关键支线：获燃料电池', questId:'q_prison', questType:'key' },
+  { type:'chest',    icon:'icon-fuel-cell', color:'#a78bfa', gx:1425, gy:143, name:'燃料电池(监狱)', region:'北欧化工', detail:'主线重要道具' },
+
+  // ── ARCTURUS (大角星) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1610, gy:271, name:'大角星营火', region:'大角星', detail:'大角星区营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1620, gy:260, name:'大角星链塔', region:'大角星', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1610, gy:271, name:'北境人气', region:'大角星', detail:'75秒击败5敌人', questId:'q_northern', questType:'side' },
+
+  // ── HIBERNUS (爱尔兰) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1121, gy:351, name:'爱尔兰营火·餐厅', region:'爱尔兰', detail:'大陆餐厅附近' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1050, gy:240, name:'爱尔兰链塔', region:'爱尔兰', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1121, gy:351, name:'无尽垃圾', region:'爱尔兰', detail:'多步线索获钥匙', questId:'q_trash', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1044, gy:237, name:'初级锯木厂', region:'爱尔兰', detail:'建造锯木厂', questId:'q_sawmill', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1061, gy:223, name:'天桥', region:'爱尔兰', detail:'稀有木材修复桥梁', questId:'q_bridge', questType:'side' },
+  { type:'resource', icon:'icon-fixable', color:'#4ade80', gx:1044, gy:237, name:"Wood's Timber锯木厂", region:'爱尔兰', detail:'可合成稀有木材' },
+
+  // ── NARROWS VALE (峡谷) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1194, gy:652, name:'峡谷营火·Rho', region:'峡谷', detail:'篱笆地/峡谷交界保存点' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:1052, gy:599, name:'峡谷链塔', region:'峡谷', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:1194, gy:652, name:'损坏的南方终端', region:'峡谷', detail:'关键支线：修复终端开启峡谷', questId:'q_terminal_s', questType:'key' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1153, gy:668, name:'逃跑路径', region:'峡谷', detail:'多步线索→武士刀秘诀', questId:'q_getaway', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:997,  gy:648, name:'雪地', region:'峡谷', detail:'挖掘头骨树宝藏', questId:'q_snowfield', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1052, gy:599, name:'破碎链塔', region:'峡谷', detail:'合成钛钢修复链塔', questId:'q_brokentwr', questType:'side' },
+  { type:'resource', icon:'icon-fixable', color:'#4ade80', gx:878,  gy:598, name:'钢铁工厂(冶金)', region:'峡谷', detail:'合成钛、钢等高级材料' },
+  { type:'fishing',  icon:'icon-fishing-spot', color:'#38bdf8', gx:1000, gy:625, name:'峡谷钓鱼点', region:'峡谷', detail:'峡谷西部水域' },
+
+  // ── SUNBURN DESERT (夕阳沙漠) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:824, gy:656, name:'夕阳沙漠营火·皮玛村', region:'夕阳沙漠', detail:'皮玛村庄营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:800, gy:650, name:'夕阳沙漠链塔', region:'夕阳沙漠', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:824, gy:656, name:'返航', region:'夕阳沙漠', detail:'搜索车队→神力碎片', questId:'q_voyage', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:639, gy:650, name:'无路可走', region:'夕阳沙漠', detail:'关键支线：开启火车通道', questId:'q_nowhere', questType:'key' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:565, gy:737, name:'金钱', region:'夕阳沙漠', detail:'读信→找树→挖宝藏', questId:'q_money', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:898, gy:752, name:'第一次远征', region:'夕阳沙漠', detail:'关键支线：获防毒面具进入中枢', questId:'q_expedition', questType:'key' },
+  { type:'boss',     icon:'icon-boss',  color:'#ef4444', gx:1300, gy:824, name:'BOSS: 老冠军', region:'蛇工', detail:'蛇工火山口神殿BOSS' },
+  { type:'treasure', icon:'icon-buried-treasure', color:'#fbbf24', gx:570, gy:714, name:'宝藏·棒球场', region:'夕阳沙漠', detail:'金钱任务挖掘点' },
+
+  // ── SERPENT'S CROSSING (蛇工) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:955, gy:825, name:'蛇工远征营地', region:'蛇工', detail:'第一次远征途中' },
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1187, gy:868, name:'蛇工·滩头营地', region:'蛇工', detail:'滩头车站营地' },
+  { type:'resource', icon:'icon-chest', color:'#a78bfa', gx:1300, gy:824, name:'神力碎片·老冠军后', region:'蛇工', detail:'BOSS后箱子' },
+
+  // ── CENTRAL (中枢) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:760, gy:439, name:'中枢营火·先驱公园', region:'中枢', detail:'先驱公园附近' },
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:662, gy:455, name:'中枢营火·铁路', region:'中枢', detail:'铁路中心附近' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:750, gy:430, name:'中枢链塔', region:'中枢', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:815, gy:396, name:'最终坚守', region:'中枢', detail:'击败BOSS→锤子秘诀', questId:'q_laststand', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:662, gy:455, name:'天路', region:'中枢', detail:'关键支线：修复火车→北极星', questId:'q_forward', questType:'key' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:659, gy:452, name:'北极快递', region:'中枢', detail:'关键支线：乘火车→北极星', questId:'q_polexp', questType:'key' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:626, gy:400, name:'严重犯规', region:'中枢', detail:'棒球套装80秒12敌人', questId:'q_foul', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:577, gy:395, name:'港口', region:'中枢', detail:'前往西港→盾牌秘诀', questId:'q_port', questType:'side' },
+  { type:'boss',     icon:'icon-boss',  color:'#ef4444', gx:828, gy:440, name:'BOSS: Skinless Skulkers', region:'中枢', detail:'城市大厅后方，锤子秘诀' },
+
+  // ── FRORE (冰霜) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:969, gy:175, name:'冰霜营火', region:'冰霜', detail:'冰霜区主营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:980, gy:180, name:'冰霜链塔', region:'冰霜', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:969, gy:175, name:'追捕清道夫', region:'冰霜', detail:'找5色物品挖宝藏', questId:'q_scavenger', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:931, gy:152, name:'村庄', region:'冰霜', detail:'装备獠牙，65秒4波', questId:'q_fangman', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:863, gy:251, name:'方舟', region:'冰霜', detail:'关键支线：完成所有收集', questId:'q_ark', questType:'key' },
+  { type:'treasure', icon:'icon-buried-treasure', color:'#fbbf24', gx:836, gy:110, name:'冰霜宝藏', region:'冰霜', detail:'追捕清道夫最终挖掘点' },
+
+  // ── POLARIS (北极星) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:500, gy:198, name:'北极星营火·春天站台', region:'北极星', detail:'乘火车后首个营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:566, gy:129, name:'北极星链塔', region:'北极星', detail:'开门需要此链塔' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:522, gy:188, name:'小钥匙开大门', region:'北极星', detail:'找北极星大门钥匙', questId:'q_smallkey', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:478, gy:118, name:'初级加工厂', region:'北极星', detail:'建造加工厂制作怀表', questId:'q_fab', questType:'side' },
+
+  // ── WESTPORT (西港) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:437, gy:354, name:'西港营火·别墅', region:'西港', detail:'豪华别墅附近' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:352, gy:444, name:'西港链塔', region:'西港', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:437, gy:354, name:'宅邸', region:'西港', detail:'解密码锁0451→神力碎片', questId:'q_mansion', questType:'side' },
+  { type:'fishing',  icon:'icon-fishing-spot', color:'#38bdf8', gx:290, gy:450, name:'西港钓鱼点', region:'西港', detail:'海岸钓鱼' },
+
+  // ── SOLARIS (索拉里斯星) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:283, gy:610, name:'索拉里斯营火·士兵站', region:'索拉里斯星', detail:'坐火车到达后首个营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:290, gy:600, name:'索拉里斯链塔', region:'索拉里斯星', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:285, gy:623, name:'头冷脚热', region:'索拉里斯星', detail:'找沙漠头盔秘诀', questId:'q_coolhead', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:244, gy:821, name:'取代', region:'索拉里斯星', detail:'关键支线：水银装置→裂谷工具包', questId:'q_displaced', questType:'key' },
+  { type:'rift',     icon:'icon-rift',  color:'#c084fc', gx:242, gy:821, name:'水银装置(神力裂隙)', region:'索拉里斯星', detail:'激活裂谷工具包后可传送' },
+
+  // ── FROST HORN (冰霜号角) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:250, gy:239, name:'冰霜号角营火', region:'冰霜号角', detail:'冰霜号角区营火' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:250, gy:239, name:'打开闸门', region:'冰霜号角', detail:'找水电大坝钥匙降水位', questId:'q_floodgates', questType:'side' },
+
+  // ── UNDERCROWN (王冠地下) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:1032, gy:339, name:'王冠地下营火', region:'王冠地下', detail:'地下区营火，无链塔' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:1032, gy:339, name:'地下出路', region:'王冠地下', detail:'关键支线：操作终端进入王冠', questId:'q_under', questType:'key' },
+
+  // ── CROWN (王冠) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:900, gy:430, name:'王冠营火', region:'王冠', detail:'王冠区主营火' },
+  { type:'tower',    icon:'icon-link-tower', color:'#fb923c', gx:910, gy:440, name:'王冠链塔', region:'王冠', detail:'激活区域地图' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:902, gy:430, name:'国王的日志', region:'王冠', detail:'收听5处音频日志', questId:'q_kingslog', questType:'side' },
+  { type:'quest',    icon:'icon-quest', color:'#60a5fa', gx:1033, gy:427, name:'山峰上的泄漏', region:'王冠', detail:'复杂路线，奖励87500XP', questId:'q_leak', questType:'side' },
+  { type:'resource', icon:'icon-hatch', color:'#a78bfa', gx:1036, gy:499, name:'方舟实验室钥匙', region:'王冠', detail:'获得神力拳套制造厂通行' },
+
+  // ── VULCAN (瓦肯镇) ──
+  { type:'campfire', icon:'icon-campfire', color:'#ff7043', gx:183, gy:573, name:'瓦肯镇营火', region:'瓦肯镇', detail:'瓦肯古城遗址附近' },
+  { type:'quest',    icon:'icon-quest', color:'#ef4444', gx:196, gy:564, name:'火山踪迹', region:'瓦肯镇', detail:'关键支线：到达火山口解锁瓦肯', questId:'q_volcanic', questType:'key' },
+
+  // ── TOMBS (古墓) ──
+  { type:'tomb', icon:'icon-tomb', color:'#a78bfa', gx:1450, gy:500, name:'古墓·迦百农东', region:'迦百农', detail:'破碎台阶谜题，蓝眼球宝珠' },
+  { type:'tomb', icon:'icon-tomb', color:'#a78bfa', gx:1055, gy:650, name:'古墓·峡谷', region:'峡谷', detail:'峡谷区古墓' },
+  { type:'tomb', icon:'icon-tomb', color:'#a78bfa', gx:730,  gy:410, name:'古墓·中枢', region:'中枢', detail:'中枢区古墓' },
+  { type:'tomb', icon:'icon-tomb', color:'#a78bfa', gx:1320, gy:180, name:'古墓·北欧化工', region:'北欧化工', detail:'北欧化工古墓' },
+  { type:'tomb', icon:'icon-tomb', color:'#a78bfa', gx:920,  gy:200, name:'古墓·冰霜', region:'冰霜', detail:'冰霜区古墓' },
+  { type:'tomb', icon:'icon-tomb', color:'#a78bfa', gx:810,  gy:680, name:'古墓·夕阳沙漠', region:'夕阳沙漠', detail:'沙漠区古墓' },
+
+  // ── FISHING ──
+  { type:'fishing', icon:'icon-fishing-spot', color:'#38bdf8', gx:860, gy:250, name:'冰霜钓鱼点', region:'冰霜', detail:'冰雪湖钓鱼' },
+  { type:'fishing', icon:'icon-fishing-spot', color:'#38bdf8', gx:760, gy:700, name:'夕阳沙漠钓鱼点', region:'夕阳沙漠', detail:'沙漠湖泊' },
+  { type:'fishing', icon:'icon-fishing-spot', color:'#38bdf8', gx:1000, gy:420, name:'王冠钓鱼点', region:'王冠', detail:'王冠区水域' },
+];
+
+// ════════════════════════════════════════════════
+// FILTER CONFIG
+// ════════════════════════════════════════════════
+const FILTER_DEFS = [
+  { id:'campfire', label:'营火', color:'#ff7043' },
+  { id:'tower',    label:'链塔', color:'#fb923c' },
+  { id:'quest',    label:'任务', color:'#60a5fa' },
+  { id:'tomb',     label:'古墓', color:'#a78bfa' },
+  { id:'fishing',  label:'钓鱼', color:'#38bdf8' },
+  { id:'treasure', label:'宝藏', color:'#fbbf24' },
+  { id:'boss',     label:'BOSS', color:'#ef4444' },
+  { id:'resource', label:'资源', color:'#4ade80' },
+  { id:'farmable', label:'农场', color:'#86efac' },
+  { id:'rift',     label:'裂隙', color:'#c084fc' },
+];
+
+const activeFilters = new Set(FILTER_DEFS.map(f => f.id));
+const layerGroups   = {};
+FILTER_DEFS.forEach(f => { layerGroups[f.id] = L.layerGroup().addTo(map); });
+
+// ── REGIONS ──────────────────────────────────────
+const REGIONS = [
+  { id:'capernaum', cn:'迦百农',     color:'#e8a020', gx:1290, gy:490 },
+  { id:'canaveral', cn:'卡纳维拉尔', color:'#4cc9f0', gx:1490, gy:440 },
+  { id:'fairwood',  cn:'柴火',       color:'#86efac', gx:1260, gy:390 },
+  { id:'hedgefield',cn:'篱笆地',     color:'#6ee7b7', gx:1490, gy:595 },
+  { id:'everglade', cn:'沼泽草地',   color:'#34d399', gx:1595, gy:730 },
+  { id:'borealis',  cn:'北欧化工',   color:'#67e8f9', gx:1300, gy:215 },
+  { id:'arcturus',  cn:'大角星',     color:'#93c5fd', gx:1610, gy:230 },
+  { id:'hibernus',  cn:'爱尔兰',     color:'#a3e635', gx:1055, gy:270 },
+  { id:'narrows',   cn:'峡谷',       color:'#fb923c', gx:1060, gy:630 },
+  { id:'sunburn',   cn:'夕阳沙漠',   color:'#fbbf24', gx:700,  gy:680 },
+  { id:'serpents',  cn:'蛇工',       color:'#f87171', gx:1020, gy:810 },
+  { id:'central',   cn:'中枢',       color:'#c084fc', gx:700,  gy:430 },
+  { id:'frore',     cn:'冰霜',       color:'#bfdbfe', gx:930,  gy:185 },
+  { id:'polaris',   cn:'北极星',     color:'#e0f2fe', gx:480,  gy:165 },
+  { id:'westport',  cn:'西港',       color:'#fda4af', gx:350,  gy:370 },
+  { id:'solaris',   cn:'索拉里斯星', color:'#fde68a', gx:250,  gy:665 },
+  { id:'frosthorn', cn:'冰霜号角',   color:'#a5f3fc', gx:225,  gy:195 },
+  { id:'vulcan',    cn:'瓦肯镇',     color:'#fca5a5', gx:155,  gy:565 },
+  { id:'undercrown',cn:'王冠地下',   color:'#d8b4fe', gx:990,  gy:320 },
+  { id:'crown',     cn:'王冠',       color:'#f9a8d4', gx:880,  gy:450 },
+];
+
+// ════════════════════════════════════════════════
+// BUILD MARKERS
+// ════════════════════════════════════════════════
+function buildMarkers() {
+  MARKER_DEFS.forEach(m => {
+    const latlng = gameToLatLng(m.gx, m.gy);
+    const icon   = mkIcon(m.icon, m.color);
+    const marker = L.marker(latlng, { icon });
+    marker.markerData = m;
+
+    // Popup content
+    const q = m.questId ? QUESTS[m.questId] : null;
+    let html = `<div class="popup-inner">`;
+    html += `<div class="popup-type">${getTypeLabel(m.type)}</div>`;
+    if (q) {
+      const badgeCls = { main:'badge-main', side:'badge-side', key:'badge-key' }[m.questType] || 'badge-side';
+      const typeLabel = { main:'主线', side:'支线', key:'关键支线' }[m.questType] || '支线';
+      html += `<span class="popup-badge ${badgeCls}">${typeLabel}</span><br>`;
+    }
+    html += `<div class="popup-title">${m.name}</div>`;
+    html += `<div class="popup-region">📍 ${m.region}</div>`;
+    html += `<div class="popup-coords">坐标: ${m.gx}°, ${m.gy}°</div>`;
+    html += `<div class="popup-desc">${m.detail}</div>`;
+    if (q) {
+      html += `<div class="popup-divider"></div>`;
+      html += `<div class="popup-quest-title">${q.name}</div>`;
+      q.steps.forEach(s => { html += `<div class="popup-step">${s}</div>`; });
+      html += `<div class="popup-reward">${q.reward}</div>`;
+    }
+    html += `</div>`;
+    marker.bindPopup(html, { maxWidth: 320, className: '' });
+
+    // On click: highlight quest card
+    marker.on('click', () => {
+      if (m.questId) highlightQuestCard(m.questId);
+    });
+
+    layerGroups[m.type] && layerGroups[m.type].addLayer(marker);
+  });
+}
+
+function getTypeLabel(t) {
+  return { campfire:'🔥 营火', tower:'📡 链塔', quest:'❗ 任务', tomb:'⚰ 古墓', fishing:'🎣 钓鱼点', treasure:'💎 宝藏', boss:'☠ BOSS', resource:'⚙ 资源点', farmable:'🌱 农场', rift:'✨ 神力裂隙', chest:'📦 宝箱' }[t] || t;
+}
+
+// ════════════════════════════════════════════════
+// FILTER BAR
+// ════════════════════════════════════════════════
+function buildFilterBar() {
+  const bar = document.getElementById('filterBar');
+  FILTER_DEFS.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'chip on';
+    btn.innerHTML = `<span class="dot" style="background:${f.color}"></span>${f.label}`;
+    btn.addEventListener('click', () => {
+      if (activeFilters.has(f.id)) {
+        activeFilters.delete(f.id);
+        btn.classList.remove('on');
+        map.removeLayer(layerGroups[f.id]);
+      } else {
+        activeFilters.add(f.id);
+        btn.classList.add('on');
+        map.addLayer(layerGroups[f.id]);
+      }
+    });
+    bar.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════
+// REGION LIST (left sidebar)
+// ════════════════════════════════════════════════
+function buildRegionList() {
+  const list = document.getElementById('regionList');
+  REGIONS.forEach(r => {
+    const el = document.createElement('div');
+    el.className = 'ritem';
+    el.dataset.rid = r.id;
+    el.innerHTML = `<span class="rdot" style="background:${r.color}"></span>
+      <div><div class="rname">${r.cn}</div></div>`;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.ritem').forEach(e => e.classList.remove('active'));
+      el.classList.add('active');
+      // Fly to region
+      const ll = gameToLatLng(r.gx, r.gy);
+      map.setView(ll, 4, { animate: true });
+      // Filter quest panel
+      buildQuestPanel(r.cn);
+    });
+    list.appendChild(el);
+  });
+}
+
+// ════════════════════════════════════════════════
+// QUEST PANEL (right sidebar)
+// ════════════════════════════════════════════════
+function buildQuestPanel(regionFilter) {
+  const list  = document.getElementById('questList');
+  const title = document.getElementById('questPanelTitle');
+  list.innerHTML = '';
+  title.textContent = regionFilter ? `▸ ${regionFilter} 任务攻略` : '▸ 全部任务攻略';
+
+  const questMarkers = MARKER_DEFS.filter(m => m.type === 'quest' && (!regionFilter || m.region === regionFilter));
+  if (!questMarkers.length) {
+    list.innerHTML = '<div class="empty-msg">该区域暂无任务数据</div>';
+    return;
+  }
+
+  questMarkers.forEach(m => {
+    const q = QUESTS[m.questId];
+    if (!q) return;
+    const card = document.createElement('div');
+    card.className = 'qcard';
+    card.id = 'qcard_' + m.questId;
+    const badgeCls = { main:'badge-main', side:'badge-side', key:'badge-key' }[q.type] || 'badge-side';
+    const typeLabel = { main:'主线', side:'支线', key:'关键支线' }[q.type] || '支线';
+    card.innerHTML = `
+      <div class="qcard-head" onclick="toggleQCard(this)">
+        <span class="qtype ${badgeCls}" style="font-size:9px;padding:1px 5px;border-radius:2px;">${typeLabel}</span>
+        <span class="qcard-name">${q.name}</span>
+        <span class="qcard-area">${m.region}</span>
+      </div>
+      <div class="qcard-body">
+        <div class="qcard-coord">📍 ${m.gx}°, ${m.gy}°</div>
+        ${q.steps.map(s=>`<div class="qstep">${s}</div>`).join('')}
+        <div class="qreward">${q.reward}</div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function toggleQCard(head) {
+  head.nextElementSibling.classList.toggle('open');
+}
+
+function highlightQuestCard(questId) {
+  const card = document.getElementById('qcard_' + questId);
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('highlight');
+  const body = card.querySelector('.qcard-body');
+  if (body) body.classList.add('open');
+  setTimeout(() => card.classList.remove('highlight'), 2000);
+}
+
+// ════════════════════════════════════════════════
+// LEGEND (floating)
+// ════════════════════════════════════════════════
+function buildLegend() {
+  const div = document.createElement('div');
+  div.id = 'legend';
+  div.innerHTML = `<div class="legend-title">图例</div>` +
+    FILTER_DEFS.map(f =>
+      `<div class="legend-row"><img class="legend-icon" src="${ICON_BASE}${iconName(f.id)}.png" onerror="this.style.opacity=0.3"/>${f.label}</div>`
+    ).join('');
+  document.getElementById('map').appendChild(div);
+}
+function iconName(type) {
+  return { campfire:'icon-campfire', tower:'icon-link-tower', quest:'icon-quest', tomb:'icon-tomb', fishing:'icon-fishing-spot', treasure:'icon-buried-treasure', boss:'icon-boss', resource:'icon-fixable', farmable:'icon-farmable', rift:'icon-rift' }[type] || 'icon-unknown';
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+buildFilterBar();
+buildRegionList();
+buildMarkers();
+buildQuestPanel(null);
+buildLegend();
+</script>
+</body>
+</html>
