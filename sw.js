@@ -15,11 +15,17 @@ const PRECACHE_URLS = [
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js',
 ];
 
-// ── Install：预缓存静态资源 ──
+// ── Install：预缓存静态资源（单个失败不阻断安装） ──
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(PRECACHE_URLS))
+    caches.open(STATIC_CACHE).then(cache =>
+      Promise.allSettled(
+        PRECACHE_URLS.map(url =>
+          fetch(url).then(res => { if (res.ok) cache.put(url, res); }).catch(() => {})
+        )
+      )
+    )
   );
 });
 
