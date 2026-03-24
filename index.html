@@ -275,7 +275,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="sep"></div>
     <div class="filters" id="filterBar"></div>
     <div class="ml-auto"></div>
-    <div class="coord-display" id="coordDisplay">坐标: — , —</div>
+    <button id="clusterToggle" onclick="toggleClustering()" title="开启/关闭图标聚合"
+  style="display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:3px;
+  border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.1);color:#ef4444;
+  font-family:'Noto Sans SC',sans-serif;font-size:11px;cursor:pointer;
+  transition:all .15s;white-space:nowrap;">
+  <span id="clusterIcon">○</span><span id="clusterLabel">聚合: 关</span>
+</button>
+<div class="coord-display" id="coordDisplay">坐标: — , —</div>
   </div>
   <div id="body">
     <div id="sidebar">
@@ -312,6 +319,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script>
+// ── Service Worker 注册（提供缓存，避免重复加载瓦片/图标） ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
 <script>
 const TILE='https://ogmods.github.io/dysmantle-map/tiles/{z}/{x}/{y}.jpg';
 const IBASE='https://ogmods.github.io/dysmantle-map/images/icons/';
@@ -1565,7 +1578,7 @@ const clusterGroup=L.markerClusterGroup({
       className:'',iconSize:L.point(dim+10,dim+10),iconAnchor:L.point((dim+10)/2,(dim+10)/2)
     });
   }
-}).addTo(map);
+}); // 初始不加到 map，默认散点模式
 
 const LG={};
 FD.forEach(f=>{ LG[f.id]=[]; });
@@ -1614,8 +1627,54 @@ function buildMarkers(){
     mk.bindPopup(h,{maxWidth:340,className:''});
     mk.on('popupopen',()=>{const el=mk.getElement();if(el){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');}});
     mk.on('click',()=>{if(m.qid)hlCard(m.qid);});
-    if(LG[m.tp]){LG[m.tp].push(mk);clusterGroup.addLayer(mk);}
+    if(LG[m.tp]){
+      mk._dystp = m.tp;  // store type for cluster toggle
+      LG[m.tp].push(mk);
+      // 默认散点模式，直接加到 rawGroup
+      rawGroup.addLayer(mk);
+    }
   });
+}
+
+// ── Cluster toggle ──
+let clusteringEnabled = false; // 默认关闭聚合
+// 用于不聚合模式下直接持有 marker 的普通层组
+const rawGroup = L.layerGroup().addTo(map); // 默认显示散点
+
+function toggleClustering(){
+  clusteringEnabled = !clusteringEnabled;
+  const btn = document.getElementById('clusterToggle');
+  const icon = document.getElementById('clusterIcon');
+  const label = document.getElementById('clusterLabel');
+
+  // 获取当前激活类型的所有 marker
+  const activeMks = [];
+  FD.forEach(f => { if(AF.has(f.id)) activeMks.push(...LG[f.id]); });
+
+  if(clusteringEnabled){
+    // 关闭散点模式，恢复聚合
+    rawGroup.clearLayers();
+    rawGroup.remove();
+    activeMks.forEach(mk => clusterGroup.addLayer(mk));
+    if(!map.hasLayer(clusterGroup)) clusterGroup.addTo(map);
+    icon.textContent = '⬡';
+    label.textContent = '聚合: 开';
+    btn.style.background = 'rgba(76,201,240,0.12)';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.color = 'var(--accent2)';
+  } else {
+    // 开启散点模式：从 clusterGroup 移除，直接加到 rawGroup
+    clusterGroup.clearLayers();
+    clusterGroup.remove();
+    rawGroup.clearLayers();
+    activeMks.forEach(mk => rawGroup.addLayer(mk));
+    rawGroup.addTo(map);
+    icon.textContent = '○';
+    label.textContent = '聚合: 关';
+    btn.style.background = 'rgba(239,68,68,0.1)';
+    btn.style.borderColor = 'rgba(239,68,68,0.4)';
+    btn.style.color = '#ef4444';
+  }
 }
 
 // ── Filter bar ──
@@ -1626,12 +1685,13 @@ function buildFilterBar(){
     btn.innerHTML=`<img src="${IBASE}${f.ic}.png" style="width:16px;height:16px;image-rendering:pixelated;filter:drop-shadow(0 0 2px ${f.cl});opacity:.9;" onerror="this.style.display='none'"/>${f.lb}`;
     btn.title=f.lb;
     btn.onclick=()=>{
+      const group = clusteringEnabled ? clusterGroup : rawGroup;
       if(AF.has(f.id)){
         AF.delete(f.id);btn.classList.remove('on');
-        LG[f.id].forEach(mk=>clusterGroup.removeLayer(mk));
+        LG[f.id].forEach(mk=>group.removeLayer(mk));
       } else {
         AF.add(f.id);btn.classList.add('on');
-        LG[f.id].forEach(mk=>clusterGroup.addLayer(mk));
+        LG[f.id].forEach(mk=>group.addLayer(mk));
       }
     };
     bar.appendChild(btn);
