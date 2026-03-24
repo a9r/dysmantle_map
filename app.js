@@ -1402,6 +1402,41 @@ function buildRegionList(){
   });
 }
 
+// ── Ray casting：判断地图坐标 (gx, gy) 落在哪个 RPOLYS 区域 ──
+function pointInPoly(pts,gx,gy){
+  // RPOLYS 的 pts 格式：[lat, lng] 即 [-y, x]，转回地图坐标 gx=lng/R, gy=-lat/R
+  // 这里 pts 是 Leaflet LatLng 格式 [lat,lng]，lat=-gy*R, lng=gx*R
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][1],yi=pts[i][0]; // lng, lat
+    const xj=pts[j][1],yj=pts[j][0];
+    const px=gx*R, py=-gy*R;         // 转成 Leaflet 坐标像素
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+function regionOfGxy(gx,gy){
+  for(const rp of RPOLYS){
+    if(pointInPoly(rp.pts,gx,gy))return rp.cn;
+  }
+  return null;
+}
+
+// ── 从 QD 的 locs 坐标自动推导任务涉及的所有区域 ──
+function questRegions(qid,fallbackR){
+  const q=QD[qid];if(!q)return fallbackR?[fallbackR]:[];
+  const regions=new Set();
+  if(q.locs&&q.locs.length){
+    for(const loc of q.locs){
+      const r=regionOfGxy(loc.gx,loc.gy);
+      if(r)regions.add(r);
+    }
+  }
+  // 如果坐标推导不出来（例如区域边界外），回退到手动 r 字段
+  if(regions.size===0&&fallbackR&&fallbackR!=='通用')regions.add(fallbackR);
+  return [...regions];
+}
+
 // ── Search ──
 let currentTab='all',currentKw='';
 const QENTRIES=[];
@@ -1409,9 +1444,23 @@ const _seen=new Set();
 MD.forEach(m=>{
   if(m.tp!=='quest'||!m.qid||_seen.has(m.qid))return;
   _seen.add(m.qid);const q=QD[m.qid];if(!q)return;
-  QENTRIES.push({qid:m.qid,qt:m.qt||q.t,gx:m.gx,gy:m.gy,region:m.r,
-    search:(q.n+' '+(q.en||'')+' '+q.s.join(' ')+' '+q.rw+' '+m.r).toLowerCase()});
+  const isUniversal=(m.r==='通用');
+  const regions=isUniversal?['通用']:questRegions(m.qid,m.r);
+  const baseSearch=(q.n+' '+(q.en||'')+' '+q.s.join(' ')+' '+q.rw).toLowerCase();
+  if(regions.length===0)regions.push(m.r||'通用');
+  for(const reg of regions){
+    QENTRIES.push({qid:m.qid,qt:m.qt||q.t,gx:m.gx,gy:m.gy,region:reg,
+      search:(baseSearch+' '+reg).toLowerCase()});
+  }
 });
+// 合并同一任务在同一区域的重复项，并按类型排序
+const _dedup=new Map();
+QENTRIES.forEach(e=>{
+  const k=e.qid+'|'+e.region;
+  if(!_dedup.has(k))_dedup.set(k,e);
+});
+QENTRIES.length=0;
+_dedup.forEach(e=>QENTRIES.push(e));
 QENTRIES.sort((a,b)=>({key:0,main:1,side:2}[a.qt]||2)-({key:0,main:1,side:2}[b.qt]||2));
 
 function hlT(text,kw){
