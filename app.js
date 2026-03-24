@@ -242,6 +242,9 @@ const QD={
   q_strange:{t:'side',n:'奇异能量',en:'Strange Energy',
     s:['接近3个不同的？图标（神力裂隙）触发','去任意链塔扫描','前往索拉里斯星水银装置242°,821°'],rw:'7000 XP',
     locs:[{label:'接取后前往水银装置',gx:242,gy:821,tp:'end'}]},
+  q_escape:{t:'main',n:'逃离岛屿',en:'Escape the Island',
+    s:['完成最终坚守任务，击败所有BOSS','发明全套末日盔甲（王冠套装）','在中枢主基地915°,461°激活发射台','倒计时结束，离开岛屿'],rw:'主线结局（游戏通关）',
+    locs:[{label:'发射台（结局触发）',gx:915,gy:461,tp:'end'}]},
 };
 
 // ════════════════════════════════════════════════
@@ -1220,6 +1223,8 @@ const MD=[
   {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:700,gy:650,n:'热带避难',r:'通用',qid:'q_sweltering',qt:'side',d:'进入热带地区触发'},
   {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:600,gy:200,n:'过冬准备',r:'通用',qid:'q_winter',qt:'side',d:'进入寒带地区触发'},
   {tp:'quest',ic:'icon-quest',cl:'#ef4444',gx:1425,gy:537,n:'埋藏宝藏任务',r:'迦百农',qid:'q_buried',qt:'side',d:'支线·1425°,537°'},
+  {tp:'quest',ic:'icon-quest',cl:'#ef4444',gx:815,gy:396,n:'最终坚守',r:'中枢',qid:'q_laststand',qt:'key',d:'关键支线·装备防毒面具后触发'},
+  {tp:'quest',ic:'icon-quest',cl:'#ef4444',gx:915,gy:461,n:'逃离岛屿',r:'中枢',qid:'q_escape',qt:'key',d:'主线结局·激活发射台离开岛屿'},
 ];;
 
 // ── Filter & Layer groups ──
@@ -1404,13 +1409,15 @@ function buildRegionList(){
 
 // ── Ray casting：判断地图坐标 (gx, gy) 落在哪个 RPOLYS 区域 ──
 function pointInPoly(pts,gx,gy){
-  // RPOLYS 的 pts 格式：[lat, lng] 即 [-y, x]，转回地图坐标 gx=lng/R, gy=-lat/R
-  // 这里 pts 是 Leaflet LatLng 格式 [lat,lng]，lat=-gy*R, lng=gx*R
+  // RPOLYS pts 是 Leaflet [lat, lng] 单位
+  // 将游戏坐标 gx/gy 转换为相同单位：scale = R / 2^NZ = 12.8/32 = 0.4
+  const sc=R/Math.pow(2,NZ);
+  const px=gx*sc;   // lng 等效值
+  const py=-gy*sc;  // lat 等效值（gy 向下为正，lat 向下为负，需取反）
   let inside=false;
   for(let i=0,j=pts.length-1;i<pts.length;j=i++){
     const xi=pts[i][1],yi=pts[i][0]; // lng, lat
     const xj=pts[j][1],yj=pts[j][0];
-    const px=gx*R, py=-gy*R;         // 转成 Leaflet 坐标像素
     if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
   }
   return inside;
@@ -1444,10 +1451,11 @@ const _seen=new Set();
 MD.forEach(m=>{
   if(m.tp!=='quest'||!m.qid||_seen.has(m.qid))return;
   _seen.add(m.qid);const q=QD[m.qid];if(!q)return;
-  const isUniversal=(m.r==='通用');
-  const regions=isUniversal?['通用']:questRegions(m.qid,m.r);
+  // 先尝试从 locs 坐标推导区域（无论 r 是否为'通用'）
+  const derived=questRegions(m.qid,null);
+  // 如果坐标推导出了具体区域，使用推导结果；否则用手动标注（含'通用'）
+  const regions=derived.length>0?derived:(m.r?[m.r]:['通用']);
   const baseSearch=(q.n+' '+(q.en||'')+' '+q.s.join(' ')+' '+q.rw).toLowerCase();
-  if(regions.length===0)regions.push(m.r||'通用');
   for(const reg of regions){
     QENTRIES.push({qid:m.qid,qt:m.qt||q.t,gx:m.gx,gy:m.gy,region:reg,
       search:(baseSearch+' '+reg).toLowerCase()});
