@@ -18,6 +18,19 @@ const TILE_UC='https://ogmods.github.io/dysmantle-map/tiles_undercrown/{z}/{x}/{
 const UC_BOUNDS=[[0,0],[-72,112]];
 const tileUC=L.tileLayer(TILE_UC,{maxNativeZoom:NZ,minNativeZoom:3,tms:false,bounds:UC_BOUNDS,
   errorTileUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'});
+// DLC 地图配置（参考 OGMods 官方 bounds）
+const DLC1_BOUNDS=[[0,0],[-184,352]]; // (23*-8, 44*8)
+const DLC2_BOUNDS=[[0,0],[-184,376]]; // (23*-8, 47*8)
+const DLC3_BOUNDS=[[0,0],[-96,192]];  // (12*-8, 24*8)
+const tileDLC1=L.tileLayer('https://ogmods.github.io/dysmantle-map/tiles_dlc1/{z}/{x}/{y}.jpg',
+  {maxNativeZoom:NZ,minNativeZoom:3,tms:false,bounds:DLC1_BOUNDS,
+  errorTileUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'});
+const tileDLC2=L.tileLayer('https://ogmods.github.io/dysmantle-map/tiles_dlc2/{z}/{x}/{y}.jpg',
+  {maxNativeZoom:NZ,minNativeZoom:3,tms:false,bounds:DLC2_BOUNDS,
+  errorTileUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'});
+const tileDLC3=L.tileLayer('https://ogmods.github.io/dysmantle-map/tiles_dlc3/{z}/{x}/{y}.jpg',
+  {maxNativeZoom:NZ,minNativeZoom:3,tms:false,bounds:DLC3_BOUNDS,
+  errorTileUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'});
 // Zoom-responsive icon sizing
 // Zoom-reactive icon sizing via CSS custom property + zoom class on map container
 function updateZoomClass(){
@@ -32,15 +45,23 @@ updateZoomClass();
 let currentMap='island';
 map.on('mousemove',e=>{
   const pt=map.project(e.latlng,NZ);
-  if(currentMap==='undercrown'){
-    document.getElementById('coordDisplay').textContent=`坐标: ${Math.round(pt.x/R)+840}°, ${Math.round(pt.y/R)+300}° [地下城]`;
-  } else {
-    document.getElementById('coordDisplay').textContent=`坐标: ${Math.round(pt.x/R)}°, ${Math.round(pt.y/R)}°`;
-  }
+  const lx=Math.round(pt.x/R),ly=Math.round(pt.y/R);
+  const mapLabels={island:'',undercrown:` [地下城]`,dlc1:` [冥界]`,dlc2:` [末日]`,dlc3:` [宠物地下城]`};
+  const offsets={island:[0,0],undercrown:[840,300],dlc1:[40,0],dlc2:[0,0],dlc3:[0,0]};
+  const [ox,oy]=offsets[currentMap]||[0,0];
+  document.getElementById('coordDisplay').textContent=`坐标: ${lx+ox}°, ${ly+oy}°${mapLabels[currentMap]||''}`;
 });
 function g2l(gx,gy){return map.unproject([gx*R,gy*R],NZ);}
 // 地下城坐标转换：官方 tile_x=(gx-840)*R, tile_y=(gy-300)*R
 function g2l_uc(gx,gy){return map.unproject([(gx-840)*R,(gy-300)*R],NZ);}
+// DLC1 坐标偏移 x+40（冥界）；DLC2/DLC3 无偏移，直接用 g2l
+function g2l_dlc1(gx,gy){return map.unproject([(gx-40)*R,gy*R],NZ);}
+// 获取当前地图的坐标转换函数
+function g2l_curr(gx,gy){
+  if(currentMap==='undercrown')return g2l_uc(gx,gy);
+  if(currentMap==='dlc1')return g2l_dlc1(gx,gy);
+  return g2l(gx,gy); // island, dlc2, dlc3 均无额外偏移
+}
 
 // ── Icon factory ──
 // Real ogmods PNG icons, sized 32×32 base; CSS zoom classes scale them
@@ -309,7 +330,7 @@ function showQuestOnMap(qid){
 
   const pts=[];
   q.locs.forEach((loc,i)=>{
-    const ll=currentMap==='undercrown'?g2l_uc(loc.gx,loc.gy):g2l(loc.gx,loc.gy);
+    const ll=g2l_curr(loc.gx,loc.gy);
     pts.push(ll);
     const color=LOC_COLORS[loc.tp]||'#aaa';
     const emoji=LOC_ICONS[loc.tp]||'📍';
@@ -1278,6 +1299,608 @@ const MD_UC=[
   {tp:'quest',   ic:'icon-quest',          cl:'#60a5fa',gx:890, gy:372,n:'地下城探索',        r:'地下城',qid:'q_undercrown_explore',qt:'side',d:'支线 · 地下城探索'},
 ];
 
+// ── 冥界 (dlc1) ──
+const MD_DLC1=[
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:454,gy:66,n:'Crystal Caves',r:'dlc1',d:'Campfire (454° ,66°) Crystal Caves'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:458,gy:69,n:'神力裂隙',r:'dlc1',d:'Rift (458° ,69°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:466,gy:67,n:'神力裂隙',r:'dlc1',d:'Rift (466° ,67°)'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:478,gy:68,n:'法力室',r:'dlc1',d:'Mana Chamber (478° ,68°) Enemy Drops: [2 x Plant Matter] Random Enemy Drops: [1 x Scrap Wood, 1 x Sc'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:481,gy:65,n:'The Slick Swindler',r:'dlc1',d:'Boss (481° ,65°) The Slick Swindler'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:626,gy:78,n:'Safe Haven',r:'dlc1',d:'Campfire (626° ,78°) Safe Haven'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:633,gy:75,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (633° ,75°) Mana Spot'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:366,gy:99,n:'可耕种',r:'dlc1',d:'Farmable (366° ,100°)'},
+  {tp:'resource',ic:'icon-energy-relay',cl:'#67e8f9',gx:661,gy:94,n:'能量中继',r:'dlc1',d:'Energy Relay (661° ,94°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:368,gy:102,n:'可耕种',r:'dlc1',d:'Farmable (368° ,102°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:365,gy:102,n:'可耕种',r:'dlc1',d:'Farmable (366° ,102°)'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:366,gy:102,n:'Farming with Enhanced Seed Bag',r:'dlc1',qid:'q_dlc1_516186',qt:'side',d:'Side Quest (366° ,102°) Farming with Enhanced Seed Bag'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:425,gy:105,n:'藏匿处',r:'dlc1',d:'Stash (425° ,105°) Stash Search Rewards: [5 x Steel, 5 x Lumber, 5 x Electronics] Stash Drops: [3 x '},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:673,gy:104,n:'可修复',r:'dlc1',d:'Drawbridge (673° ,104°)'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:664,gy:110,n:'法力室',r:'dlc1',d:'Mana Chamber (664° ,110°) Enemy Drops: [5 x Plant Matter, 1 x Common Roach, 1 x Red Herring, 1 x Lum'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:674,gy:108,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (674° ,108°) Mana Spot'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:683,gy:109,n:'Sawmill Building Basics',r:'dlc1',qid:'q_dlc1_548169',qt:'side',d:'Side Quest (684° ,109°) Sawmill Building Basics'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:384,gy:123,n:'可修复',r:'dlc1',d:'Fixable (384° ,123°) Required Materials: [3 x Lumber]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:391,gy:128,n:'Hidden Workshop',r:'dlc1',d:'Campfire (391° ,128°) Hidden Workshop'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:538,gy:120,n:'Glimpse',r:'dlc1',d:'Campfire (538° ,120°) Glimpse'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:667,gy:136,n:'Colony of the Divided',r:'dlc1',d:'Campfire (667° ,136°) Colony of the Divided'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:684,gy:137,n:'可修复',r:'dlc1',d:'Fixable (684° ,137°) Required Materials: [6 x Lumber]'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:709,gy:126,n:'藏匿处',r:'dlc1',d:'Stash (709° ,126°) Stash Search Rewards: [5 x Lumber, 5 x Rubber, 5 x Plastics] Stash Drops: [1 x Sc'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:746,gy:137,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (746° ,137°) Drops: [10 x Bone, 10 x Meat]'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:764,gy:126,n:'藏匿处',r:'dlc1',d:'Stash (764° ,126°) Stash Search Rewards: [6 x Electronics, 8 x Steel] Stash Drops: [1 x Blue Eye Orb'},
+  {tp:'resource',ic:'icon-wishing-well',cl:'#f0abfc',gx:424,gy:148,n:'许愿井',r:'dlc1',d:'Wishing Well (424° ,148°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:483,gy:142,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (483° ,142°) Mana Spot'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:582,gy:159,n:'藏匿处',r:'dlc1',d:'Stash (582° ,159°) Stash Search Rewards: [5 x Steel, 5 x Lumber] Stash Drops: [3 x Scrap Wood]'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:676,gy:142,n:'Underworld Fate',r:'dlc1',d:'Audio Log (676° ,142°) Underworld Fate'},
+  {tp:'resource',ic:'icon-arena-obelisk',cl:'#f0abfc',gx:750,gy:157,n:'竞技场方尖碑',r:'dlc1',d:'Arena Obelisk (750° ,157°) Wave 1 Rewards: [18 x Wood] Wave 2 Rewards: [10 x Rubber] Wave 3 Rewards:'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:794,gy:157,n:'Scavenger Hamlet',r:'dlc1',d:'Campfire (794° ,157°) Scavenger Hamlet'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:522,gy:162,n:'藏匿处',r:'dlc1',d:'Stash (522° ,162°) Stash Search Rewards: [5 x Steel, 5 x Lumber] Stash Drops: [3 x Scrap Wood]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:532,gy:175,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (532° ,175°) Drops: [5 x Red Mushroom, 5 x Electronics, 2 x Lumber]'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:736,gy:162,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (736° ,162°) Mana Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:765,gy:179,n:'Legendary Mana Spot',r:'dlc1',d:'Fishing Spot (765° ,179°) Legendary Mana Spot'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:793,gy:165,n:'Vault into Past',r:'dlc1',qid:'q_dlc1_846171',qt:'side',d:'Side Quest (793° ,165°) Vault into Past'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:814,gy:162,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (814° ,162°) Mana Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:470,gy:184,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (470° ,184°) Drops: [15 x Rubber, 5 x Electronics]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:650,gy:186,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (650° ,186°) Drops: [2 x Steel, 10 x Fabric]'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:658,gy:193,n:'传送宝藏',r:'dlc1',d:'Buried Treasure (658° ,193°) To: Blade Runner\'s Maze'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:773,gy:194,n:'',r:'dlc1',d:'Doghouse (773° ,194°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:376,gy:208,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (376° ,208°) Drops: [1 x Mana Shard, 5 x Fabric]'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:396,gy:208,n:'Good Spot',r:'dlc1',d:'Fishing Spot (396° ,208°) Good Spot'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:572,gy:207,n:'Underworld Rumors',r:'dlc1',d:'Audio Log (572° ,207°) Underworld Rumors'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:606,gy:217,n:'Underworld Doc',r:'dlc1',d:'Audio Log (606° ,217°) Underworld Doc'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:634,gy:212,n:'可修复',r:'dlc1',d:'Fixable (634° ,212°) Required Materials: [4 x Lumber]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:623,gy:215,n:'Broken Railroad',r:'dlc1',d:'Campfire (623° ,215°) Broken Railroad'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:656,gy:206,n:'可修复',r:'dlc1',d:'Drawbridge (656° ,206°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:665,gy:215,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (665° ,215°) Drops: [3 x Steel, 5 x Rubber]'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:725,gy:219,n:'限时箱子',r:'dlc1',d:'Timed Chest (725° ,219°) Time Available: 18 seconds Rewards: [1 x Mana Chunk, 2 x Titanium]'},
+  {tp:'resource',ic:'icon-wishing-well',cl:'#f0abfc',gx:754,gy:218,n:'许愿井',r:'dlc1',d:'Wishing Well (754° ,218°)'},
+  {tp:'resource',ic:'icon-hatch',cl:'#94a3b8',gx:797,gy:213,n:'避难所',r:'dlc1',d:'Shelter (797° ,213°)'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:788,gy:215,n:'限时箱子',r:'dlc1',d:'Timed Chest (788° ,215°) Time Available: 27 seconds Rewards: [6 x Lumber, 10 x Steel, 1 x Mana Chunk'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:807,gy:216,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (807° ,216°) Drops: [4 x Steel, 12 x Rubber, 25 x Ceramics]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:842,gy:215,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (842° ,215°) Drops: [5 x Mana Bead, 2 x Titanium]'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:396,gy:235,n:'传送宝藏',r:'dlc1',d:'Buried Treasure (396° ,235°) To: The Perilous Labyrinth'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:464,gy:236,n:'Good Spot',r:'dlc1',d:'Fishing Spot (464° ,236°) Good Spot'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:508,gy:228,n:'法力室',r:'dlc1',d:'Mana Chamber (508° ,228°) Enemy Drops: [1 x Fabric, 2 x Wood, 1 x Wood, 1 x Scrap Fabric, 2 x Iron, '},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:610,gy:223,n:'神力裂隙',r:'dlc1',d:'Rift (610° ,223°)'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:640,gy:226,n:'Sawmill Building Basics',r:'dlc1',qid:'q_dlc1_1118254',qt:'side',d:'Side Quest (640° ,226°) Sawmill Building Basics'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:648,gy:228,n:'可耕种',r:'dlc1',d:'Farmable (648° ,228°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:650,gy:230,n:'可耕种',r:'dlc1',d:'Farmable (650° ,230°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:644,gy:230,n:'可耕种',r:'dlc1',d:'Farmable (644° ,230°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:729,gy:223,n:'神力裂隙',r:'dlc1',d:'Rift (729° ,223°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:774,gy:235,n:'神力裂隙',r:'dlc1',d:'Rift (774° ,235°)'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:99,gy:251,n:'Underworld Island Entrance',r:'dlc1',d:'Entryway (99° ,251°) Underworld Island Entrance'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:112,gy:240,n:'Island In the End',r:'dlc1',d:'Campfire (112° ,240°) Island In the End'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:357,gy:256,n:'Beachtop',r:'dlc1',d:'Campfire (357° ,256°) Beachtop'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:376,gy:252,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (376° ,252°) Mana Spot'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:414,gy:251,n:'法力室',r:'dlc1',d:'Mana Chamber (414° ,251°) Enemy Drops: [2 x Rubber, 4 x Iron, 2 x Lumber, 1 x Scrap Fabric, 1 x Plas'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:433,gy:255,n:'藏匿处',r:'dlc1',d:'Stash (433° ,255°) Stash Search Rewards: [5 x Steel, 10 x Rubber] Stash Drops: [3 x Scrap Wood]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:449,gy:241,n:'Jalopy Station',r:'dlc1',d:'Campfire (449° ,241°) Jalopy Station'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:501,gy:258,n:'Overrun Barricades',r:'dlc1',d:'Campfire (501° ,258°) Overrun Barricades'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:538,gy:248,n:'可修复',r:'dlc1',d:'Drawbridge (538° ,248°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:573,gy:248,n:'可修复',r:'dlc1',d:'Drawbridge (573° ,248°)'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:608,gy:251,n:'Capper',r:'dlc1',d:'Link Tower (608° ,251°) Capper'},
+  {tp:'resource',ic:'icon-energy-relay',cl:'#67e8f9',gx:612,gy:255,n:'能量中继',r:'dlc1',d:'Energy Relay (612° ,255°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:736,gy:252,n:'Basin of Solitude',r:'dlc1',d:'Campfire (736° ,252°) Basin of Solitude'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:777,gy:250,n:'藏匿处',r:'dlc1',d:'Stash (777° ,250°) Stash Search Rewards: [10 x Steel, 8 x Electronics, 2 x Titanium] Stash Drops: [1'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:836,gy:257,n:'法力室',r:'dlc1',d:'Mana Chamber (836° ,257°) Enemy Drops: [1 x Lobster, 1 x Lobster, 1 x Lumber, 2 x Wood, 1 x Mana Bea'},
+  {tp:'resource',ic:'icon-energy-relay',cl:'#67e8f9',gx:885,gy:242,n:'能量中继',r:'dlc1',d:'Energy Relay (885° ,242°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:414,gy:264,n:'可修复',r:'dlc1',d:'Drawbridge (414° ,264°)'},
+  {tp:'resource',ic:'icon-energy-relay',cl:'#67e8f9',gx:449,gy:270,n:'能量中继',r:'dlc1',d:'Energy Relay (449° ,270°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:558,gy:280,n:'Crownsville',r:'dlc1',d:'Campfire (558° ,280°) Crownsville'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:614,gy:262,n:'Ivory Mountain Co.',r:'dlc1',d:'Campfire (614° ,262°) Ivory Mountain Co.'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:688,gy:270,n:'Dexter',r:'dlc1',d:'Link Tower (688° ,270°) Dexter'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:725,gy:271,n:'神力裂隙',r:'dlc1',d:'Rift (725° ,271°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:761,gy:260,n:'神力裂隙',r:'dlc1',d:'Rift (761° ,260°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:798,gy:276,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (798° ,276°) Drops: [1 x Mana Shard, 12 x Lumber]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:851,gy:279,n:'Farm of Desolation',r:'dlc1',d:'Campfire (851° ,279°) Farm of Desolation'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:398,gy:286,n:'可修复',r:'dlc1',d:'Drawbridge (398° ,286°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:384,gy:281,n:'Knot Shores',r:'dlc1',d:'Campfire (384° ,281°) Knot Shores'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:426,gy:287,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (426° ,287°) Drops: [8 x Iron, 8 x Rubber, 1 x Mana Bead]'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:494,gy:298,n:'法力室',r:'dlc1',d:'Mana Chamber (494° ,298°) Enemy Drops: [2 x Rubber, 2 x Iron, 1 x Fabric, 1 x Lobster, 1 x Steel, 3 '},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:521,gy:292,n:'可修复',r:'dlc1',d:'Drawbridge (521° ,292°)'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:540,gy:283,n:'Underworld Divide',r:'dlc1',d:'Audio Log (540° ,283°) Underworld Divide'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:586,gy:290,n:'Underworld Ivory',r:'dlc1',d:'Audio Log (586° ,290°) Underworld Ivory'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:661,gy:285,n:'藏匿处',r:'dlc1',d:'Stash (661° ,285°) Stash Search Rewards: [5 x Carrot, 5 x Corn, 5 x Tomato, 5 x Berries, 1 x Lobster'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:748,gy:296,n:'神力裂隙',r:'dlc1',d:'Rift (748° ,296°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:772,gy:283,n:'神力裂隙',r:'dlc1',d:'Rift (772° ,283°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:828,gy:286,n:'可修复',r:'dlc1',d:'Drawbridge (828° ,286°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:855,gy:291,n:'可耕种',r:'dlc1',d:'Farmable (856° ,292°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:856,gy:294,n:'可耕种',r:'dlc1',d:'Farmable (856° ,294°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:858,gy:290,n:'可耕种',r:'dlc1',d:'Farmable (858° ,290°)'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:424,gy:314,n:'藏匿处',r:'dlc1',d:'Stash (424° ,314°) Stash Search Rewards: [1 x Blue Eye Orb] Stash Drops: [1 x Blue Eye Orb]'},
+  {tp:'resource',ic:'icon-energy-relay',cl:'#67e8f9',gx:554,gy:315,n:'能量中继',r:'dlc1',d:'Energy Relay (554° ,315°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:556,gy:300,n:'可修复',r:'dlc1',d:'Drawbridge (556° ,300°)'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:625,gy:305,n:'',r:'dlc1',d:'Locked Door (625° ,305°) Doc\'s House Key'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:624,gy:316,n:'可耕种',r:'dlc1',d:'Farmable (624° ,316°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:625,gy:316,n:'可耕种',r:'dlc1',d:'Farmable (626° ,316°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:624,gy:314,n:'可耕种',r:'dlc1',d:'Farmable (624° ,314°)'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:620,gy:311,n:'Farming with Enhanced Seed Bag',r:'dlc1',qid:'q_dlc1_1502119',qt:'side',d:'Side Quest (620° ,312°) Farming with Enhanced Seed Bag'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:640,gy:313,n:'限时箱子',r:'dlc1',d:'Timed Chest (640° ,313°) Time Available: 30 seconds Rewards: [1 x Blue Eye Orb, 1 x Titanium]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:665,gy:306,n:'Gorge of the Undead',r:'dlc1',d:'Campfire (665° ,306°) Gorge of the Undead'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:721,gy:312,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (721° ,312°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:782,gy:310,n:'神力裂隙',r:'dlc1',d:'Rift (782° ,310°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:782,gy:312,n:'Legendary Mana Spot',r:'dlc1',d:'Fishing Spot (782° ,312°) Legendary Mana Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:813,gy:313,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (814° ,313°) Mana Spot'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:801,gy:318,n:'限时箱子',r:'dlc1',d:'Timed Chest (801° ,318°) Time Available: 29 seconds Rewards: [2 x Titanium, 10 x Lumber]'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:487,gy:334,n:'Desperate Existence',r:'dlc1',qid:'q_dlc1_1584342',qt:'side',d:'Side Quest (487° ,334°) Desperate Existence'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:549,gy:321,n:'',r:'dlc1',d:'Locked Door (549° ,321°) Town Station Key'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:576,gy:338,n:'可修复',r:'dlc1',d:'Drawbridge (576° ,338°)'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:564,gy:327,n:'Underworld Relays',r:'dlc1',d:'Audio Log (564° ,327°) Underworld Relays'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:590,gy:325,n:'',r:'dlc1',d:'Doghouse (590° ,325°)'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:642,gy:334,n:'传送宝藏',r:'dlc1',d:'Buried Treasure (642° ,334°) To: The Abandoned Maze'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:723,gy:339,n:'Underworld Spirits',r:'dlc1',d:'Audio Log (723° ,339°) Underworld Spirits'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:739,gy:328,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (739° ,328°) Drops: [1 x Mana Shard, 4 x Titanium, 30 x Plastics]'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:768,gy:329,n:'藏匿处',r:'dlc1',d:'Stash (768° ,329°) Stash Search Rewards: [5 x Steel, 5 x Mana Bead, 2 x Mana Chunk] Stash Drops: [1 '},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:771,gy:339,n:'神力裂隙',r:'dlc1',d:'Rift (771° ,339°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:799,gy:330,n:'神力裂隙',r:'dlc1',d:'Rift (799° ,330°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:420,gy:356,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (420° ,356°) Drops: [5 x Hide, 5 x Fabric]'},
+  {tp:'resource',ic:'icon-energy-relay',cl:'#67e8f9',gx:451,gy:356,n:'能量中继',r:'dlc1',d:'Energy Relay (451° ,356°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:480,gy:346,n:'Passage Valley',r:'dlc1',d:'Campfire (480° ,346°) Passage Valley'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:526,gy:358,n:'Smelter Building Basics',r:'dlc1',qid:'q_dlc1_1684049',qt:'side',d:'Side Quest (526° ,358°) Smelter Building Basics'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:542,gy:343,n:'可修复',r:'dlc1',d:'Fixable (542° ,343°) Required Materials: [3 x Lumber]'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:697,gy:347,n:'法力室',r:'dlc1',d:'Mana Chamber (697° ,347°) Enemy Drops: [1 x Blue Eye Orb] Random Enemy Drops: [1 x Blue Eye Orb]'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:696,gy:345,n:'Spirit Trouble',r:'dlc1',qid:'q_dlc1_1700229',qt:'key',d:'Main Quest (696° ,345°) Spirit Trouble'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:449,gy:366,n:'Sinister',r:'dlc1',d:'Link Tower (449° ,366°) Sinister'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:631,gy:368,n:'藏匿处',r:'dlc1',d:'Stash (631° ,368°) Stash Search Rewards: [10 x Egg, 5 x Wheat, 5 x Tomato, 2 x Spices] Stash Drops: '},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:730,gy:362,n:'Shattered Suburbs',r:'dlc1',d:'Campfire (730° ,362°) Shattered Suburbs'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:758,gy:374,n:'神力裂隙',r:'dlc1',d:'Rift (758° ,374°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:788,gy:362,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (788° ,362°) Mana Spot'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:468,gy:400,n:'藏匿处',r:'dlc1',d:'Stash (468° ,400°) Stash Search Rewards: [5 x Potato, 3 x Hide, 5 x Fabric, 2 x Steel] Stash Drops: '},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:509,gy:382,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (509° ,382°) Mana Spot'},
+  {tp:'resource',ic:'icon-arena-obelisk',cl:'#f0abfc',gx:530,gy:384,n:'竞技场方尖碑',r:'dlc1',d:'Arena Obelisk (530° ,384°) Wave 1 Rewards: [18 x Wood] Wave 2 Rewards: [10 x Rubber] Wave 3 Rewards:'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:582,gy:384,n:'Scarp of Thieves',r:'dlc1',d:'Campfire (582° ,384°) Scarp of Thieves'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:427,gy:414,n:'Underworld Entryway',r:'dlc1',d:'Campfire (427° ,414°) Underworld Entryway'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:435,gy:411,n:'Underworld Explorers',r:'dlc1',d:'Audio Log (435° ,411°) Underworld Explorers'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:506,gy:410,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (506° ,410°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:553,gy:407,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (553° ,407°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:564,gy:413,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (564° ,413°) Required Quest: Desperate Existence [Side Quest] Drops: [1 x Scrap Fabr'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:402,gy:423,n:'Entrance Underworld',r:'dlc1',d:'Entryway (402° ,423°) Entrance Underworld'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:448,gy:437,n:'埋藏宝藏',r:'dlc1',d:'Buried Treasure (448° ,437°) Drops: [5 x Hide, 5 x Rubber]'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:516,gy:433,n:'传送宝藏',r:'dlc1',d:'Buried Treasure (516° ,433°)'},
+  {tp:'resource',ic:'icon-mana-chamber',cl:'#a78bfa',gx:552,gy:426,n:'法力室',r:'dlc1',d:'Mana Chamber (552° ,426°) Enemy Drops: [1 x Blue Eye Orb] Random Enemy Drops: [1 x Blue Eye Orb]'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:516,gy:443,n:'Mana Spot',r:'dlc1',d:'Fishing Spot (516° ,443°) Mana Spot'},
+];
+
+const REG_DLC1=[
+  {cn:'Jalopy Station',color:'#fbbf24',gx:449,gy:265},
+  {cn:'Bunker Station',color:'#fbbf24',gx:875,gy:243},
+  {cn:'Colony Station',color:'#fbbf24',gx:659,gy:91},
+  {cn:'Arrowhead Station',color:'#fbbf24',gx:455,gy:352},
+  {cn:'Southern Crownsville',color:'#fbbf24',gx:567,gy:274},
+  {cn:'Northern Crownsville',color:'#fbbf24',gx:579,gy:211},
+  {cn:'Eastern Farmlands',color:'#86efac',gx:645,gy:244},
+  {cn:'Colony of the Divided',color:'#fbbf24',gx:673,gy:126},
+  {cn:'Foundry Point',color:'#86efac',gx:529,gy:352},
+  {cn:'Crystal Caves',color:'#fbbf24',gx:444,gy:87},
+  {cn:'Ivory Mountain Co.',color:'#86efac',gx:606,gy:247},
+  {cn:'Town Station',color:'#fbbf24',gx:554,gy:321},
+  {cn:'Doc\'s House',color:'#86efac',gx:619,gy:307},
+  {cn:'Shattered Suburbs',color:'#86efac',gx:700,gy:353},
+  {cn:'Lost Forest',color:'#86efac',gx:517,gy:438},
+  {cn:'Apex Gasoline',color:'#86efac',gx:425,gy:272},
+  {cn:'Basin of Solitude',color:'#fbbf24',gx:736,gy:254},
+  {cn:'Cavern of Wishes',color:'#86efac',gx:440,gy:156},
+  {cn:'Farm of Desolation',color:'#86efac',gx:851,gy:290},
+  {cn:'Safe Haven',color:'#86efac',gx:626,gy:80},
+  {cn:'Underworld Entryway',color:'#fbbf24',gx:421,gy:425},
+  {cn:'Passage Valley',color:'#86efac',gx:493,gy:320},
+  {cn:'Derelict Outpost',color:'#86efac',gx:665,gy:176},
+  {cn:'Hidden Workshop',color:'#86efac',gx:350,gy:108},
+  {cn:'Island in the End',color:'#fbbf24',gx:109,gy:250},
+  {cn:'Gorge of the Undead',color:'#86efac',gx:625,gy:338},
+  {cn:'Mortal Roundabout',color:'#86efac',gx:474,gy:274},
+  {cn:'Scavenger Hamlet',color:'#86efac',gx:792,gy:155},
+  {cn:'Scarp of Thieves',color:'#86efac',gx:555,gy:404},
+  {cn:'Plateau of Respite',color:'#86efac',gx:746,gy:333},
+  {cn:'Cliffside Encampment',color:'#86efac',gx:803,gy:295},
+  {cn:'Farm from Afar',color:'#86efac',gx:748,gy:223},
+];
+
+// ── 末日 (dlc2) ──
+const MD_DLC2=[
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:194,gy:49,n:'Doomsday\'s Common Spot',r:'dlc2',d:'Fishing Spot (194° ,49°) Doomsday\'s Common Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:315,gy:57,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (315° ,57°) Doomsday\'s Good Spot'},
+  {tp:'resource',ic:'icon-hatch',cl:'#94a3b8',gx:211,gy:74,n:'避难所',r:'dlc2',d:'Shelter (211° ,74°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:461,gy:79,n:'终端',r:'dlc2',d:'Terminal (462° ,79°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:189,gy:97,n:'The Concrete Forest',r:'dlc2',d:'Campfire (189° ,97°) The Concrete Forest'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:217,gy:99,n:'Dlc2 Introduction',r:'dlc2',d:'Audio Log (217° ,99°) Dlc2 Introduction'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:307,gy:85,n:'限时箱子',r:'dlc2',d:'Timed Chest (307° ,85°) Time Available: 15 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:343,gy:89,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (343° ,89°) Drops: [2 x Lumber, 2 x Steel]'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:376,gy:88,n:'可修复',r:'dlc2',d:'Drawbridge (376° ,88°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:479,gy:95,n:'Coastlab Interior',r:'dlc2',d:'Campfire (479° ,95°) Coastlab Interior'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:542,gy:99,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (542° ,99°) Doomsday\'s Legendary Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:244,gy:100,n:'Nona Complex Interior Entrance',r:'dlc2',d:'Campfire (244° ,100°) Nona Complex Interior Entrance'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:330,gy:110,n:'Logistics Area',r:'dlc2',d:'Campfire (330° ,110°) Logistics Area'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:333,gy:109,n:'Dlc2 Success',r:'dlc2',d:'Audio Log (333° ,109°) Dlc2 Success'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:344,gy:110,n:'限时箱子',r:'dlc2',d:'Timed Chest (344° ,110°) Time Available: 11 seconds Rewards: [8 x Electronics, 6 x Gold Ore]'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:476,gy:102,n:'Coastlab Entrance Terminal',r:'dlc2',d:'Terminal (476° ,102°) Coastlab Entrance Terminal'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:196,gy:133,n:'限时箱子',r:'dlc2',d:'Timed Chest (196° ,133°) Time Available: 15 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'resource',ic:'icon-fabricator',cl:'#4ade80',gx:208,gy:122,n:'Recipe: [Beam Gun]',r:'dlc2',d:'Fabricator (208° ,122°) Recipe: [Beam Gun]'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:276,gy:136,n:'Nona Defensive System Test Range Terminal',r:'dlc2',d:'Terminal (276° ,136°) Nona Defensive System Test Range Terminal'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:271,gy:123,n:'Computer Assisted Targeting System',r:'dlc2',d:'Boss (271° ,123°) Computer Assisted Targeting System'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:444,gy:128,n:'Go With the Flow',r:'dlc2',qid:'q_dlc2_620311',qt:'side',d:'Side Quest (444° ,128°) Go With the Flow'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:484,gy:126,n:'Good Spot',r:'dlc2',d:'Fishing Spot (484° ,126°) Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:806,gy:139,n:'神力裂隙',r:'dlc2',d:'Rift (806° ,139°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:116,gy:151,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (116° ,151°) Drops: [1 x Banana, 15 x Mana Bead, 8 x Ceramics]'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:242,gy:144,n:'终端',r:'dlc2',d:'Terminal (242° ,144°)'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:276,gy:159,n:'Nona',r:'dlc2',d:'Link Tower (276° ,159°) Nona'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:290,gy:142,n:'Logistics Entrance',r:'dlc2',d:'Campfire (290° ,142°) Logistics Entrance'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:310,gy:145,n:'Sawmill Building Basics',r:'dlc2',qid:'q_dlc2_702294',qt:'side',d:'Side Quest (310° ,145°) Sawmill Building Basics'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:397,gy:144,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (397° ,144°) Doomsday\'s Legendary Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:491,gy:143,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (491° ,143°) Drops: [1 x Electronics]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:505,gy:155,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (505° ,155°) Drops: [1 x Steel]'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:508,gy:143,n:'可修复',r:'dlc2',d:'Drawbridge (508° ,143°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:513,gy:150,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (513° ,150°) Drops: [1 x Scrap Fabric]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:539,gy:146,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (539° ,146°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:524,gy:147,n:'Scrapyard Entrance Terminal',r:'dlc2',d:'Terminal (524° ,147°) Scrapyard Entrance Terminal'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:537,gy:152,n:'Scrapyard Entrance',r:'dlc2',d:'Campfire (537° ,152°) Scrapyard Entrance'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:547,gy:146,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (547° ,146°) Doomsday\'s Good Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:639,gy:144,n:'Morta Aerial Resupply Depot',r:'dlc2',d:'Campfire (639° ,144°) Morta Aerial Resupply Depot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:667,gy:151,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (667° ,151°) Doomsday\'s Legendary Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:681,gy:157,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (681° ,157°)'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:781,gy:156,n:'限时箱子',r:'dlc2',d:'Timed Chest (781° ,156°) Time Available: 15 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:840,gy:151,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (840° ,151°) Doomsday\'s Legendary Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:128,gy:164,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (128° ,164°) Drops: [4 x Wood, 6 x Rubber, 1 x Truffle]'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:143,gy:172,n:'Turn Over A New Leaf',r:'dlc2',qid:'q_dlc2_782322',qt:'side',d:'Side Quest (143° ,172°) Turn Over A New Leaf'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:144,gy:166,n:'',r:'dlc2',d:'Doghouse (144° ,166°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:152,gy:171,n:'Collingwood',r:'dlc2',d:'Campfire (152° ,171°) Collingwood'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:268,gy:162,n:'Smelter Building Basics',r:'dlc2',qid:'q_dlc2_794240',qt:'side',d:'Side Quest (268° ,162°) Smelter Building Basics'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:298,gy:161,n:'终端',r:'dlc2',d:'Terminal (298° ,162°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:302,gy:168,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (302° ,168°) Doomsday\'s Legendary Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:331,gy:161,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (331° ,161°) Doomsday\'s Good Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:426,gy:166,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (426° ,166°) Doomsday\'s Good Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:479,gy:166,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (479° ,166°) Required Quest: On to the Scrap Heap [Side Quest] Key Drops: [Scrapyard'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:477,gy:171,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (477° ,171°) Doomsday\'s Good Spot'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:478,gy:168,n:'',r:'dlc2',d:'Doghouse (478° ,168°)'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:678,gy:173,n:'Dlc2 Abyss',r:'dlc2',d:'Audio Log (678° ,173°) Dlc2 Abyss'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:117,gy:181,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (117° ,181°) Doomsday\'s Good Spot'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:160,gy:195,n:'限时箱子',r:'dlc2',d:'Timed Chest (160° ,195°) Time Available: 15 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:162,gy:185,n:'神力裂隙',r:'dlc2',d:'Rift (162° ,185°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:231,gy:197,n:'Nona Complex Exterior Base',r:'dlc2',d:'Campfire (231° ,197°) Nona Complex Exterior Base'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:300,gy:191,n:'Attica',r:'dlc2',d:'Campfire (300° ,191°) Attica'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:312,gy:196,n:'Strike the Earth',r:'dlc2',qid:'q_dlc2_894108',qt:'side',d:'Side Quest (312° ,196°) Strike the Earth'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:445,gy:183,n:'North of Decima Complex',r:'dlc2',d:'Campfire (445° ,183°) North of Decima Complex'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:539,gy:193,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (539° ,193°) Doomsday\'s Good Spot'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:554,gy:182,n:'On to the Scrap Heap',r:'dlc2',qid:'q_dlc2_918129',qt:'side',d:'Side Quest (554° ,182°) On to the Scrap Heap'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:583,gy:187,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (583° ,187°) Doomsday\'s Good Spot'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:617,gy:185,n:'The Legend of the Magic Sword',r:'dlc2',qid:'q_dlc2_924244',qt:'side',d:'Side Quest (617° ,185°) The Legend of the Magic Sword'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:708,gy:184,n:'Morta Complex Parking Area',r:'dlc2',d:'Campfire (708° ,184°) Morta Complex Parking Area'},
+  {tp:'resource',ic:'icon-hatch',cl:'#94a3b8',gx:758,gy:186,n:'避难所',r:'dlc2',d:'Shelter (758° ,186°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:798,gy:186,n:'Temporal Laboratory Entrance',r:'dlc2',d:'Campfire (798° ,186°) Temporal Laboratory Entrance'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:784,gy:191,n:'可修复',r:'dlc2',d:'Drawbridge (784° ,192°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:813,gy:182,n:'神力裂隙',r:'dlc2',d:'Rift (813° ,182°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:190,gy:218,n:'可修复',r:'dlc2',d:'Drawbridge (190° ,218°)'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:217,gy:219,n:'传送宝藏',r:'dlc2',d:'Buried Treasure (217° ,219°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:251,gy:202,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (251° ,202°) Drops: [4 x Gold Bar]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:339,gy:201,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (339° ,201°) Drops: [6 x Scrap Electronics, 4 x Wood]'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:376,gy:200,n:'可修复',r:'dlc2',d:'Drawbridge (376° ,200°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:500,gy:214,n:'Personnel Dormitory',r:'dlc2',d:'Campfire (500° ,214°) Personnel Dormitory'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:536,gy:215,n:'限时箱子',r:'dlc2',d:'Timed Chest (536° ,215°) Time Available: 15 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:570,gy:219,n:'Outside Live Specimen Study',r:'dlc2',d:'Campfire (570° ,219°) Outside Live Specimen Study'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:673,gy:205,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (673° ,205°) Doomsday\'s Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:673,gy:213,n:'神力裂隙',r:'dlc2',d:'Rift (673° ,213°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:671,gy:217,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (671° ,217°) Drops: [8 x Gold Bar]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:752,gy:211,n:'Outside Morta Main Generator',r:'dlc2',d:'Campfire (752° ,211°) Outside Morta Main Generator'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:756,gy:215,n:'终端',r:'dlc2',d:'Terminal (756° ,215°)'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:785,gy:216,n:'',r:'dlc2',d:'Doghouse (785° ,216°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:807,gy:208,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (807° ,208°) Doomsday\'s Good Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:835,gy:204,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (835° ,204°) Doomsday\'s Legendary Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:151,gy:230,n:'Nona Aerial Supply Depot',r:'dlc2',d:'Campfire (151° ,230°) Nona Aerial Supply Depot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:242,gy:233,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (242° ,233°) Doomsday\'s Good Spot'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:301,gy:238,n:'可修复',r:'dlc2',d:'Drawbridge (301° ,238°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:326,gy:235,n:'神力裂隙',r:'dlc2',d:'Rift (326° ,235°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:381,gy:226,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (381° ,226°) Doomsday\'s Legendary Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:419,gy:227,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (419° ,227°) Drops: [12 x Iron, 18 x Wood]'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:435,gy:238,n:'限时箱子',r:'dlc2',d:'Timed Chest (435° ,238°) Time Available: 15 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:502,gy:224,n:'终端',r:'dlc2',d:'Terminal (502° ,224°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:538,gy:222,n:'Live Specimen Study Area Terminal',r:'dlc2',d:'Terminal (538° ,222°) Live Specimen Study Area Terminal'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:664,gy:232,n:'神力裂隙',r:'dlc2',d:'Rift (664° ,232°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:696,gy:224,n:'Power Generation Subcomplex Terminal',r:'dlc2',d:'Terminal (696° ,224°) Power Generation Subcomplex Terminal'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:775,gy:239,n:'限时箱子',r:'dlc2',d:'Timed Chest (775° ,239°) Time Available: 12 seconds Rewards: [1 x Blue Eye Orb]'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:147,gy:259,n:'Dlc2 Drone To Main Island',r:'dlc2',d:'Entryway (147° ,259°) Dlc2 Drone To Main Island'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:161,gy:247,n:'Doomsday\'s Common Spot',r:'dlc2',d:'Fishing Spot (161° ,247°) Doomsday\'s Common Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:310,gy:249,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (310° ,249°) Required Quest: Treasure Hunt [Side Quest] Drops: [4 x Steel, 4 x Lumbe'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:315,gy:246,n:'神力裂隙',r:'dlc2',d:'Rift (315° ,246°)'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:377,gy:248,n:'传送宝藏',r:'dlc2',d:'Buried Treasure (377° ,248°) To: Circuitry Contraption'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:413,gy:255,n:'Botanical Laboratory Gate Terminal',r:'dlc2',d:'Terminal (413° ,255°) Botanical Laboratory Gate Terminal'},
+  {tp:'resource',ic:'icon-fabricator',cl:'#4ade80',gx:418,gy:251,n:'加工厂',r:'dlc2',d:'Fabricator (418° ,252°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:436,gy:254,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (436° ,254°) Drops: [7 x Gold Ore]'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:421,gy:258,n:'Flower Power Forever',r:'dlc2',qid:'q_dlc2_1194251',qt:'side',d:'Side Quest (421° ,258°) Flower Power Forever'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:455,gy:259,n:'终端',r:'dlc2',d:'Terminal (456° ,259°)'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:513,gy:244,n:'BOSS',r:'dlc2',d:'Boss (513° ,244°) '},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:543,gy:249,n:'Morgue',r:'dlc2',d:'Campfire (543° ,249°) Morgue'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:589,gy:256,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (589° ,256°) Doomsday\'s Legendary Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:619,gy:251,n:'Doomsday\'s Common Spot',r:'dlc2',d:'Fishing Spot (619° ,251°) Doomsday\'s Common Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:653,gy:241,n:'神力裂隙',r:'dlc2',d:'Rift (653° ,241°)'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:682,gy:258,n:'Morta',r:'dlc2',d:'Link Tower (682° ,258°) Morta'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:689,gy:254,n:'The Gantry Entrance',r:'dlc2',d:'Campfire (689° ,254°) The Gantry Entrance'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:708,gy:243,n:'The Gantry Bridge Terminal',r:'dlc2',d:'Terminal (708° ,243°) The Gantry Bridge Terminal'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:708,gy:257,n:'The Gantry Gate Terminal',r:'dlc2',d:'Terminal (708° ,257°) The Gantry Gate Terminal'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:723,gy:250,n:'Gantry',r:'dlc2',d:'Boss (723° ,250°) Gantry'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:813,gy:257,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (813° ,257°) Drops: [4 x Gold Bar, 1 x Central Processing Unit]'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:359,gy:275,n:'Treasure Hunt',r:'dlc2',qid:'q_dlc2_1282181',qt:'side',d:'Side Quest (359° ,275°) Treasure Hunt'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:365,gy:277,n:'Redwicket Convenience Store',r:'dlc2',d:'Campfire (365° ,277°) Redwicket Convenience Store'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:399,gy:277,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (399° ,277°) Drops: [6 x Steel, 16 x Ceramics]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:410,gy:260,n:'Outside Botanical Labs',r:'dlc2',d:'Campfire (410° ,260°) Outside Botanical Labs'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:443,gy:277,n:'North Decima',r:'dlc2',d:'Link Tower (443° ,277°) North Decima'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:450,gy:263,n:'Decima Complex Courtyard',r:'dlc2',d:'Campfire (450° ,263°) Decima Complex Courtyard'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:486,gy:268,n:'终端',r:'dlc2',d:'Terminal (486° ,268°)'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:519,gy:262,n:'Dlc2 The Veil',r:'dlc2',d:'Audio Log (519° ,262°) Dlc2 The Veil'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:542,gy:278,n:'终端',r:'dlc2',d:'Terminal (542° ,278°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:667,gy:266,n:'神力裂隙',r:'dlc2',d:'Rift (667° ,266°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:686,gy:261,n:'终端',r:'dlc2',d:'Terminal (686° ,262°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:749,gy:273,n:'Morta Complex Eastern Exit',r:'dlc2',d:'Campfire (749° ,273°) Morta Complex Eastern Exit'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:291,gy:287,n:'Redwicket Expansion Site',r:'dlc2',d:'Campfire (291° ,287°) Redwicket Expansion Site'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:428,gy:295,n:'终端',r:'dlc2',d:'Terminal (428° ,295°)'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:449,gy:296,n:'Dlc2 Promotion',r:'dlc2',d:'Audio Log (449° ,296°) Dlc2 Promotion'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:491,gy:280,n:'终端',r:'dlc2',d:'Terminal (491° ,280°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:534,gy:291,n:'Nona Logistics Area Gate Terminal',r:'dlc2',d:'Terminal (534° ,292°) Nona Logistics Area Gate Terminal'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:584,gy:286,n:'Good Spot',r:'dlc2',d:'Fishing Spot (584° ,286°) Good Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:610,gy:286,n:'Dead End Camp',r:'dlc2',d:'Campfire (610° ,286°) Dead End Camp'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:628,gy:282,n:'传送宝藏',r:'dlc2',d:'Buried Treasure (628° ,282°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:635,gy:291,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (635° ,291°) Doomsday\'s Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:675,gy:281,n:'神力裂隙',r:'dlc2',d:'Rift (675° ,281°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:705,gy:297,n:'埋藏宝藏',r:'dlc2',d:'Buried Treasure (705° ,297°) Drops: [2 x Gold Bar, 2 x Titanium, 1 x Mana Shard]'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:726,gy:293,n:'Dlc2 Evidence',r:'dlc2',d:'Audio Log (726° ,293°) Dlc2 Evidence'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:789,gy:281,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (789° ,281°) Doomsday\'s Good Spot'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:838,gy:291,n:'入口',r:'dlc2',d:'Entryway (838° ,291°) '},
+  {tp:'resource',ic:'icon-wishing-well',cl:'#f0abfc',gx:261,gy:320,n:'许愿井',r:'dlc2',d:'Wishing Well (262° ,320°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:317,gy:307,n:'可修复',r:'dlc2',d:'Drawbridge (317° ,307°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:534,gy:312,n:'Near Excavated Tomb',r:'dlc2',d:'Campfire (534° ,312°) Near Excavated Tomb'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:250,gy:328,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (250° ,328°) Doomsday\'s Good Spot'},
+  {tp:'resource',ic:'icon-buried-teleporter',cl:'#c084fc',gx:284,gy:332,n:'传送宝藏',r:'dlc2',d:'Buried Treasure (284° ,332°) To: Angora Activation'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:477,gy:329,n:'Decima Secure Laboratory',r:'dlc2',d:'Campfire (477° ,329°) Decima Secure Laboratory'},
+  {tp:'resource',ic:'icon-hatch',cl:'#94a3b8',gx:482,gy:329,n:'避难所',r:'dlc2',d:'Shelter (482° ,329°)'},
+  {tp:'tomb',ic:'icon-tomb',cl:'#a78bfa',gx:532,gy:331,n:'古墓',r:'dlc2',d:'Tomb (532° ,332°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:555,gy:333,n:'Outside Drone Control Center',r:'dlc2',d:'Campfire (555° ,333°) Outside Drone Control Center'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:289,gy:352,n:'Doomsday\'s Common Spot',r:'dlc2',d:'Fishing Spot (289° ,352°) Doomsday\'s Common Spot'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:362,gy:350,n:'可修复',r:'dlc2',d:'Drawbridge (362° ,350°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:383,gy:357,n:'Good Spot',r:'dlc2',d:'Fishing Spot (383° ,357°) Good Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:413,gy:348,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (413° ,348°) Doomsday\'s Good Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:508,gy:342,n:'Good Spot',r:'dlc2',d:'Fishing Spot (508° ,342°) Good Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:291,gy:363,n:'Encampment by the Beach',r:'dlc2',d:'Campfire (291° ,363°) Encampment by the Beach'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:358,gy:368,n:'Doomsday\'s Good Spot',r:'dlc2',d:'Fishing Spot (358° ,368°) Doomsday\'s Good Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:383,gy:377,n:'Orinoko',r:'dlc2',d:'Campfire (383° ,377°) Orinoko'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:466,gy:375,n:'Doomsday\'s Common Spot',r:'dlc2',d:'Fishing Spot (466° ,375°) Doomsday\'s Common Spot'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:370,gy:395,n:'South Decima',r:'dlc2',d:'Link Tower (370° ,396°) South Decima'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:402,gy:398,n:'可修复',r:'dlc2',d:'Drawbridge (402° ,398°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:440,gy:418,n:'Doomsday\'s Legendary Spot',r:'dlc2',d:'Fishing Spot (440° ,418°) Doomsday\'s Legendary Spot'},
+];
+
+const REG_DLC2=[
+  {cn:'Nona Aerial Resupply Depot',color:'#86efac',gx:155,gy:240},
+  {cn:'Decima Aerial Resupply Depot',color:'#86efac',gx:612,gy:325},
+  {cn:'Morta Aerial Resupply Depot',color:'#86efac',gx:637,gy:143},
+  {cn:'Collingwood',color:'#fbbf24',gx:148,gy:147},
+  {cn:'Redwicket',color:'#fbbf24',gx:355,gy:276},
+  {cn:'Rochester',color:'#fbbf24',gx:604,gy:170},
+  {cn:'The Concrete Forest',color:'#86efac',gx:183,gy:77},
+  {cn:'Nona Interior Entrance',color:'#fbbf24',gx:250,gy:102},
+  {cn:'Cooling Substation',color:'#86efac',gx:261,gy:77},
+  {cn:'Conference Area',color:'#86efac',gx:223,gy:82},
+  {cn:'Engineering Section',color:'#86efac',gx:213,gy:110},
+  {cn:'Theoretical Laboratories',color:'#86efac',gx:238,gy:123},
+  {cn:'Defensive System Test Range',color:'#86efac',gx:273,gy:123},
+  {cn:'Loading Area',color:'#86efac',gx:308,gy:135},
+  {cn:'Main Power Station',color:'#86efac',gx:251,gy:156},
+  {cn:'Botanical laboratory',color:'#86efac',gx:425,gy:253},
+  {cn:'Live Specimen Study',color:'#86efac',gx:561,gy:218},
+  {cn:'Guest Lobby',color:'#86efac',gx:456,gy:297},
+  {cn:'Maintenance Section',color:'#86efac',gx:477,gy:243},
+  {cn:'Morgue',color:'#86efac',gx:551,gy:251},
+  {cn:'Holding Pens',color:'#86efac',gx:414,gy:287},
+  {cn:'Settlement Facsimile',color:'#86efac',gx:511,gy:242},
+  {cn:'Decima Shelter Depot',color:'#86efac',gx:477,gy:328},
+  {cn:'Ancient Tomb Excavation',color:'#fbbf24',gx:540,gy:333},
+  {cn:'Drone Control Center',color:'#86efac',gx:570,gy:308},
+  {cn:'Decima-Morta Transit Station',color:'#86efac',gx:581,gy:271},
+  {cn:'Oninoko',color:'#fbbf24',gx:373,gy:396},
+  {cn:'Gillespie',color:'#86efac',gx:278,gy:370},
+  {cn:'Kakola',color:'#86efac',gx:261,gy:320},
+  {cn:'Eastern Jungle Rampart',color:'#86efac',gx:432,gy:370},
+  {cn:'Western Jungle Rampart',color:'#86efac',gx:319,gy:358},
+  {cn:'Coastlab',color:'#fbbf24',gx:480,gy:86},
+  {cn:'Fincher\'s Scrapyard',color:'#86efac',gx:536,gy:122},
+  {cn:'Boreal Country House',color:'#86efac',gx:515,gy:176},
+  {cn:'Auxiliary Intelligence Development',color:'#86efac',gx:685,gy:178},
+  {cn:'Morta Electrical Substation',color:'#86efac',gx:659,gy:251},
+  {cn:'The Gantry Control Room',color:'#86efac',gx:702,gy:250},
+  {cn:'The Gantry',color:'#fbbf24',gx:730,gy:250},
+  {cn:'Advanced Armament Design Bureau',color:'#86efac',gx:692,gy:276},
+  {cn:'Dead End Camp',color:'#86efac',gx:618,gy:289},
+  {cn:'Executive Suite',color:'#86efac',gx:720,gy:300},
+  {cn:'Temporal Research Laboratory',color:'#fbbf24',gx:803,gy:161},
+  {cn:'Morta Complex Main Generator',color:'#86efac',gx:764,gy:221},
+];
+
+// ── 宠物地下城 (dlc3) ──
+const MD_DLC3=[
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:134,gy:40,n:'神力裂隙',r:'dlc3',d:'Rift (134° ,40°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:162,gy:37,n:'可修复',r:'dlc3',d:'Drawbridge (162° ,37°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:248,gy:35,n:'神力裂隙',r:'dlc3',d:'Rift (248° ,35°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:302,gy:37,n:'Good Spot',r:'dlc3',d:'Fishing Spot (302° ,37°) Good Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:63,gy:58,n:'Legendary Mana Spot',r:'dlc3',d:'Fishing Spot (63° ,58°) Legendary Mana Spot'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:143,gy:58,n:'限时箱子',r:'dlc3',d:'Timed Chest (143° ,58°) Time Available: 17 seconds Rewards: [3 x Lumber, 1 x Mana Chunk]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:176,gy:51,n:'Frostarium Entrance',r:'dlc3',d:'Campfire (176° ,51°) Frostarium Entrance'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:166,gy:46,n:'Entry Winter',r:'dlc3',d:'Entryway (166° ,46°) Entry Winter'},
+  {tp:'resource',ic:'icon-lock2',cl:'#4ade80',gx:179,gy:55,n:'',r:'dlc3',d:'Locked Door (179° ,55°) Expert Lockpick'},
+  {tp:'resource',ic:'icon-lock2',cl:'#4ade80',gx:186,gy:55,n:'',r:'dlc3',d:'Locked Door (186° ,55°) Expert Lockpick'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:216,gy:50,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (216° ,50°) Drops: [7 x Rubber, 2 x Iron]'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:239,gy:53,n:'神力裂隙',r:'dlc3',d:'Rift (239° ,53°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:251,gy:40,n:'Good Spot',r:'dlc3',d:'Fishing Spot (252° ,40°) Good Spot'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:296,gy:56,n:'Arboretum Gas Station',r:'dlc3',d:'Campfire (296° ,56°) Arboretum Gas Station'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:301,gy:57,n:'Arboretum',r:'dlc3',d:'Link Tower (301° ,57°) Arboretum'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:362,gy:46,n:'',r:'dlc3',d:'Doghouse (362° ,46°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:88,gy:70,n:'Good Spot',r:'dlc3',d:'Fishing Spot (88° ,70°) Good Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:100,gy:72,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (100° ,72°) Drops: [1 x Mana Chunk]'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:107,gy:63,n:'The Beast of Frost',r:'dlc3',d:'Boss (107° ,63°) The Beast of Frost'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:122,gy:63,n:'可修复',r:'dlc3',d:'Drawbridge (122° ,63°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:142,gy:77,n:'Frostarium Underhill',r:'dlc3',d:'Campfire (142° ,77°) Frostarium Underhill'},
+  {tp:'resource',ic:'icon-wishing-well',cl:'#f0abfc',gx:149,gy:66,n:'许愿井',r:'dlc3',d:'Wishing Well (150° ,66°)'},
+  {tp:'resource',ic:'icon-terminal',cl:'#4cc9f0',gx:218,gy:76,n:'Frostarium Bridge Gate',r:'dlc3',d:'Terminal (218° ,76°) Frostarium Bridge Gate'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:232,gy:62,n:'Dlc3 Ad1',r:'dlc3',d:'Audio Log (232° ,62°) Dlc3 Ad1'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:266,gy:73,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (266° ,74°) Drops: [7 x Berries]'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:292,gy:80,n:'限时箱子',r:'dlc3',d:'Timed Chest (292° ,80°) Time Available: 8 seconds Rewards: [5 x Electronics, 5 x Lumber]'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:315,gy:80,n:'可修复',r:'dlc3',d:'Drawbridge (315° ,80°)'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:334,gy:74,n:'',r:'dlc3',d:'Doghouse (334° ,74°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:334,gy:73,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (334° ,73°) Drops: [3 x Rubber]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:352,gy:62,n:'Arboretum Entrance',r:'dlc3',d:'Campfire (352° ,62°) Arboretum Entrance'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:368,gy:64,n:'Entry Forest',r:'dlc3',d:'Entryway (368° ,64°) Entry Forest'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:386,gy:73,n:'Good Spot',r:'dlc3',d:'Fishing Spot (386° ,73°) Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:45,gy:80,n:'神力裂隙',r:'dlc3',d:'Rift (45° ,80°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:74,gy:98,n:'Good Spot',r:'dlc3',d:'Fishing Spot (74° ,98°) Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:126,gy:88,n:'神力裂隙',r:'dlc3',d:'Rift (126° ,88°)'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:168,gy:87,n:'Frostarium',r:'dlc3',d:'Link Tower (168° ,87°) Frostarium'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:255,gy:97,n:'The Beast of Timber',r:'dlc3',d:'Boss (255° ,97°) The Beast of Timber'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:287,gy:99,n:'',r:'dlc3',d:'Doghouse (287° ,99°)'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:287,gy:98,n:'',r:'dlc3',d:'Doghouse (287° ,98°)'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:289,gy:88,n:'Lone Wolves',r:'dlc3',qid:'q_dlc3_220365',qt:'side',d:'Side Quest (289° ,88°) Lone Wolves'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:316,gy:92,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (316° ,92°) Drops: [5 x Wood, 2 x Lumber]'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:304,gy:90,n:'可耕种',r:'dlc3',d:'Farmable (304° ,90°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:306,gy:92,n:'可耕种',r:'dlc3',d:'Farmable (306° ,92°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:308,gy:89,n:'可耕种',r:'dlc3',d:'Farmable (308° ,90°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:308,gy:96,n:'可耕种',r:'dlc3',d:'Farmable (308° ,96°)'},
+  {tp:'farmable',ic:'icon-farmable',cl:'#4ade80',gx:310,gy:92,n:'可耕种',r:'dlc3',d:'Farmable (310° ,92°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:331,gy:89,n:'Good Spot',r:'dlc3',d:'Fishing Spot (331° ,89°) Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:328,gy:93,n:'神力裂隙',r:'dlc3',d:'Rift (328° ,93°)'},
+  {tp:'resource',ic:'icon-wishing-well',cl:'#f0abfc',gx:351,gy:96,n:'许愿井',r:'dlc3',d:'Wishing Well (352° ,96°)'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:358,gy:84,n:'Dlc3 Ad4',r:'dlc3',d:'Audio Log (358° ,84°) Dlc3 Ad4'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:368,gy:81,n:'',r:'dlc3',d:'Doghouse (368° ,81°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:403,gy:99,n:'Doomsday\'s Common Spot',r:'dlc3',d:'Fishing Spot (403° ,99°) Doomsday\'s Common Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:403,gy:95,n:'Doomsday\'s Common Spot',r:'dlc3',d:'Fishing Spot (403° ,95°) Doomsday\'s Common Spot'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:420,gy:91,n:'The Lab Guardian',r:'dlc3',d:'Boss (420° ,91°) The Lab Guardian'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:49,gy:114,n:'',r:'dlc3',d:'Doghouse (49° ,114°)'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:48,gy:114,n:'',r:'dlc3',d:'Doghouse (48° ,114°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:58,gy:102,n:'神力裂隙',r:'dlc3',d:'Rift (58° ,102°)'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:99,gy:107,n:'限时箱子',r:'dlc3',d:'Timed Chest (99° ,107°) Time Available: 8 seconds Rewards: [1 x Mana Chunk]'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:80,gy:115,n:'',r:'dlc3',d:'Locked Door (80° ,115°) Old Vault Room Key'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:137,gy:106,n:'Water',r:'dlc3',d:'Fishing Spot (137° ,106°) Water'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:158,gy:104,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (158° ,104°) Drops: [24 x Plant Matter, 12 x Bone]'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:233,gy:116,n:'Dlc3 Ad3',r:'dlc3',d:'Audio Log (233° ,116°) Dlc3 Ad3'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:248,gy:119,n:'Ward\'s Lab',r:'dlc3',d:'Campfire (248° ,119°) Ward\'s Lab'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:273,gy:100,n:'可修复',r:'dlc3',d:'Drawbridge (273° ,100°)'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:262,gy:117,n:'限时箱子',r:'dlc3',d:'Timed Chest (262° ,117°) Time Available: 10 seconds Rewards: [2 x Mana Shard]'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:295,gy:112,n:'Legendary Spot',r:'dlc3',d:'Fishing Spot (295° ,112°) Legendary Spot'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:294,gy:102,n:'Surrounded Farm',r:'dlc3',qid:'q_dlc3_268197',qt:'key',d:'Main Quest (294° ,102°) Surrounded Farm'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:312,gy:116,n:'Weird Spot',r:'dlc3',d:'Fishing Spot (312° ,116°) Weird Spot'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:323,gy:103,n:'可修复',r:'dlc3',d:'Drawbridge (323° ,103°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:354,gy:104,n:'神力裂隙',r:'dlc3',d:'Rift (354° ,104°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:40,gy:120,n:'Mana Spot',r:'dlc3',d:'Fishing Spot (40° ,120°) Mana Spot'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:56,gy:125,n:'The Groundskeeper',r:'dlc3',d:'Boss (56° ,125°) The Groundskeeper'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:88,gy:122,n:'Isle of Mana Entrance',r:'dlc3',d:'Campfire (88° ,122°) Isle of Mana Entrance'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:97,gy:125,n:'Entry Dlc1',r:'dlc3',d:'Entryway (97° ,125°) Entry Dlc1'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:143,gy:135,n:'神力裂隙',r:'dlc3',d:'Rift (143° ,135°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:168,gy:129,n:'神力裂隙',r:'dlc3',d:'Rift (168° ,129°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:186,gy:122,n:'Weird Spot',r:'dlc3',d:'Fishing Spot (186° ,122°) Weird Spot'},
+  {tp:'resource',ic:'icon-lock3',cl:'#4ade80',gx:204,gy:134,n:'',r:'dlc3',d:'Locked Door (204° ,134°) Master Lockpick'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:232,gy:120,n:'Vivarium Nexus',r:'dlc3',d:'Link Tower (232° ,120°) Vivarium Nexus'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:240,gy:126,n:'',r:'dlc3',d:'Locked Door (240° ,126°) Frostarium Key'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:240,gy:126,n:'',r:'dlc3',d:'Locked Door (240° ,126°) Arboretum Key'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:240,gy:126,n:'',r:'dlc3',d:'Locked Door (240° ,126°) Desolatum Key'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:240,gy:127,n:'',r:'dlc3',d:'Locked Door (240° ,127°) Terrarium Key'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:240,gy:120,n:'Entry Reward Room',r:'dlc3',d:'Entryway (240° ,120°) Entry Reward Room'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:240,gy:130,n:'Pet Isle Center Elevator',r:'dlc3',d:'Entryway (240° ,130°) Pet Isle Center Elevator'},
+  {tp:'resource',ic:'icon-audio-log',cl:'#94a3b8',gx:259,gy:125,n:'Dlc3 Ad2',r:'dlc3',d:'Audio Log (259° ,125°) Dlc3 Ad2'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:331,gy:121,n:'可修复',r:'dlc3',d:'Drawbridge (331° ,121°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:378,gy:120,n:'Isle of Doom North',r:'dlc3',d:'Campfire (378° ,120°) Isle of Doom North'},
+  {tp:'resource',ic:'icon-lock3',cl:'#4ade80',gx:404,gy:130,n:'',r:'dlc3',d:'Locked Door (404° ,130°) Master Lockpick'},
+  {tp:'resource',ic:'icon-lock3',cl:'#4ade80',gx:412,gy:130,n:'',r:'dlc3',d:'Locked Door (412° ,130°) Master Lockpick'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:427,gy:135,n:'',r:'dlc3',d:'Doghouse (427° ,135°)'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:427,gy:131,n:'',r:'dlc3',d:'Doghouse (427° ,131°)'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:427,gy:132,n:'',r:'dlc3',d:'Doghouse (427° ,132°)'},
+  {tp:'resource',ic:'icon-stash',cl:'#86efac',gx:42,gy:159,n:'藏匿处',r:'dlc3',d:'Stash (42° ,159°) Stash Search Rewards: [3 x Lobster, 1 x Titanium] Stash Drops: [1 x Scrap Wood]'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:74,gy:152,n:'Isle of Mana',r:'dlc3',d:'Link Tower (74° ,152°) Isle of Mana'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:138,gy:152,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (138° ,152°)'},
+  {tp:'resource',ic:'icon-lock3',cl:'#4ade80',gx:184,gy:151,n:'',r:'dlc3',d:'Locked Door (184° ,151°) Master Lockpick'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:216,gy:144,n:'The Beast of Desolation',r:'dlc3',d:'Boss (216° ,144°) The Beast of Desolation'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:214,gy:156,n:'Barracks B Truck Stop',r:'dlc3',d:'Campfire (214° ,156°) Barracks B Truck Stop'},
+  {tp:'boss',ic:'icon-boss',cl:'#ef4444',gx:254,gy:141,n:'The Beast of Terra',r:'dlc3',d:'Boss (254° ,141°) The Beast of Terra'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:279,gy:146,n:'Terrarium',r:'dlc3',d:'Link Tower (279° ,146°) Terrarium'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:272,gy:154,n:'Wisdom\'s Basketball Field',r:'dlc3',d:'Campfire (272° ,154°) Wisdom\'s Basketball Field'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:293,gy:143,n:'可修复',r:'dlc3',d:'Drawbridge (293° ,143°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:300,gy:158,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (300° ,158°) Drops: [1 x Scrap Electronics, 1 x Corn]'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:311,gy:153,n:'Forgotten Wisdom',r:'dlc3',qid:'q_dlc3_366227',qt:'side',d:'Side Quest (311° ,153°) Forgotten Wisdom'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:323,gy:141,n:'Weird Spot',r:'dlc3',d:'Fishing Spot (323° ,141°) Weird Spot'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:336,gy:156,n:'Good Spot',r:'dlc3',d:'Fishing Spot (336° ,156°) Good Spot'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:381,gy:144,n:'Entry Dlc2',r:'dlc3',d:'Entryway (381° ,144°) Entry Dlc2'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:402,gy:146,n:'Isle of Doom',r:'dlc3',d:'Link Tower (402° ,146°) Isle of Doom'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:405,gy:140,n:'Isle of Doom South',r:'dlc3',d:'Campfire (405° ,140°) Isle of Doom South'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:64,gy:166,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (64° ,166°) Required Quest: The Underdog [Side Quest] Drops: [4 x Bone, 1 x Mana Bea'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:67,gy:176,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (67° ,176°) Required Quest: The Underdog [Side Quest] Drops: [3 x Mana Bead, 1 x Bon'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:87,gy:172,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (87° ,172°) Required Quest: The Underdog [Side Quest] Drops: [4 x Bone, 1 x Mana Bea'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:100,gy:171,n:'',r:'dlc3',d:'Doghouse (100° ,171°)'},
+  {tp:'resource',ic:'icon-lock3',cl:'#4ade80',gx:198,gy:165,n:'',r:'dlc3',d:'Locked Door (198° ,165°) Master Lockpick'},
+  {tp:'resource',ic:'icon-hatch',cl:'#94a3b8',gx:181,gy:168,n:'避难所',r:'dlc3',d:'Shelter (181° ,168°)'},
+  {tp:'tower',ic:'icon-link-tower',cl:'#fb923c',gx:216,gy:161,n:'Desolatum',r:'dlc3',d:'Link Tower (216° ,161°) Desolatum'},
+  {tp:'quest',ic:'icon-quest',cl:'#60a5fa',gx:201,gy:175,n:'Stolen Pet',r:'dlc3',qid:'q_dlc3_404211',qt:'side',d:'Side Quest (201° ,175°) Stolen Pet'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:314,gy:161,n:'可修复',r:'dlc3',d:'Drawbridge (314° ,162°)'},
+  {tp:'resource',ic:'icon-fixable',cl:'#4ade80',gx:305,gy:169,n:'可修复',r:'dlc3',d:'Drawbridge (305° ,169°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:329,gy:177,n:'神力裂隙',r:'dlc3',d:'Rift (329° ,177°)'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:350,gy:176,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (350° ,176°)'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:365,gy:167,n:'神力裂隙',r:'dlc3',d:'Rift (365° ,167°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:380,gy:173,n:'Doomsday\'s Legendary Spot',r:'dlc3',d:'Fishing Spot (380° ,173°) Doomsday\'s Legendary Spot'},
+  {tp:'resource',ic:'icon-unknown',cl:'#94a3b8',gx:408,gy:175,n:'',r:'dlc3',d:'Doghouse (408° ,175°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:429,gy:172,n:'Doomsday\'s Common Spot',r:'dlc3',d:'Fishing Spot (429° ,172°) Doomsday\'s Common Spot'},
+  {tp:'resource',ic:'icon-lock',cl:'#4ade80',gx:420,gy:169,n:'',r:'dlc3',d:'Locked Door (420° ,169°) Vault Room Key'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:55,gy:181,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (55° ,181°) Required Quest: The Underdog [Side Quest] Drops: [4 x Bone, 1 x Mana Bea'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:63,gy:194,n:'Good Spot',r:'dlc3',d:'Fishing Spot (63° ,194°) Good Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:89,gy:184,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (89° ,184°) Required Quest: The Underdog [Side Quest] Drops: [4 x Bone, 1 x Mana Bea'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:142,gy:191,n:'Good Spot',r:'dlc3',d:'Fishing Spot (142° ,191°) Good Spot'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:154,gy:184,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (154° ,184°)'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:178,gy:182,n:'Desolatum Base',r:'dlc3',d:'Campfire (178° ,182°) Desolatum Base'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:166,gy:188,n:'Entry Desert',r:'dlc3',d:'Entryway (166° ,188°) Entry Desert'},
+  {tp:'treasure',ic:'icon-chest',cl:'#fbbf24',gx:206,gy:199,n:'限时箱子',r:'dlc3',d:'Timed Chest (206° ,199°) Time Available: 20 seconds Rewards: [3 x Mana Chunk]'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:226,gy:184,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (226° ,184°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:262,gy:182,n:'Good Spot',r:'dlc3',d:'Fishing Spot (262° ,182°) Good Spot'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:287,gy:190,n:'神力裂隙',r:'dlc3',d:'Rift (287° ,190°)'},
+  {tp:'resource',ic:'icon-entryway',cl:'#86efac',gx:313,gy:197,n:'Entry Ancient',r:'dlc3',d:'Entryway (313° ,197°) Entry Ancient'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:304,gy:186,n:'埋藏宝藏',r:'dlc3',d:'Buried Treasure (304° ,186°) Drops: [2 x Plastics, 3 x Hide, 6 x Iron]'},
+  {tp:'campfire',ic:'icon-campfire',cl:'#ff7043',gx:321,gy:189,n:'Terrarium Crossroads',r:'dlc3',d:'Campfire (321° ,189°) Terrarium Crossroads'},
+  {tp:'rift',ic:'icon-rift',cl:'#c084fc',gx:395,gy:188,n:'神力裂隙',r:'dlc3',d:'Rift (395° ,188°)'},
+  {tp:'fishing',ic:'icon-fishing-spot',cl:'#38bdf8',gx:285,gy:200,n:'Good Spot',r:'dlc3',d:'Fishing Spot (285° ,200°) Good Spot'},
+];
+
+const REG_DLC3=[
+  {cn:'Rustic Serenity Settlement',color:'#86efac',gx:341,gy:60},
+  {cn:'Arctic Workers\' Retreat',color:'#86efac',gx:197,gy:70},
+  {cn:'The Ward',color:'#86efac',gx:240,gy:120},
+  {cn:'Mirage Labor Barracks',color:'#86efac',gx:194,gy:162},
+  {cn:'Wisdom\'s Grove Academy',color:'#86efac',gx:285,gy:170},
+  {cn:'Pet Cemetery',color:'#86efac',gx:74,gy:170},
+  {cn:'The Lab Scientists\' Villa',color:'#86efac',gx:412,gy:120},
+  {cn:'Secured Retreat',color:'#86efac',gx:409,gy:168},
+  {cn:'Jimmy\'s House',color:'#86efac',gx:152,gy:140},
+  {cn:'Barracks A',color:'#86efac',gx:208,gy:182},
+  {cn:'Barracks B',color:'#86efac',gx:201,gy:155},
+  {cn:'Educators\' Dormitory',color:'#86efac',gx:345,gy:185},
+  {cn:'Students\' Dormitory',color:'#86efac',gx:309,gy:134},
+  {cn:'Principal\'s House',color:'#86efac',gx:269,gy:149},
+  {cn:'Wisdom\'s Library',color:'#86efac',gx:265,gy:166},
+  {cn:'The Bar',color:'#86efac',gx:193,gy:83},
+  {cn:'The Wolf Farm',color:'#86efac',gx:293,gy:98},
+];
+
+// DLC Quest Data
+QD['q_dlc1_516186']={t:'side',n:'Farming with Enhanced Seed Bag',mapId:'dlc1',s:['Side Quest (366° ,102°) Farming with Enhanced Seed Bag'],rw:'',locs:[{label:'Farming with Enhanced Seed Bag',gx:366,gy:102,tp:'start'}]};
+QD['q_dlc1_548169']={t:'side',n:'Sawmill Building Basics',mapId:'dlc1',s:['Side Quest (684° ,109°) Sawmill Building Basics'],rw:'',locs:[{label:'Sawmill Building Basics',gx:683,gy:109,tp:'start'}]};
+QD['q_dlc1_846171']={t:'side',n:'Vault into Past',mapId:'dlc1',s:['Side Quest (793° ,165°) Vault into Past'],rw:'',locs:[{label:'Vault into Past',gx:793,gy:165,tp:'start'}]};
+QD['q_dlc1_1118254']={t:'side',n:'Sawmill Building Basics',mapId:'dlc1',s:['Side Quest (640° ,226°) Sawmill Building Basics'],rw:'',locs:[{label:'Sawmill Building Basics',gx:640,gy:226,tp:'start'}]};
+QD['q_dlc1_1502119']={t:'side',n:'Farming with Enhanced Seed Bag',mapId:'dlc1',s:['Side Quest (620° ,312°) Farming with Enhanced Seed Bag'],rw:'',locs:[{label:'Farming with Enhanced Seed Bag',gx:620,gy:311,tp:'start'}]};
+QD['q_dlc1_1584342']={t:'side',n:'Desperate Existence',mapId:'dlc1',s:['Side Quest (487° ,334°) Desperate Existence'],rw:'',locs:[{label:'Desperate Existence',gx:487,gy:334,tp:'start'}]};
+QD['q_dlc1_1684049']={t:'side',n:'Smelter Building Basics',mapId:'dlc1',s:['Side Quest (526° ,358°) Smelter Building Basics'],rw:'',locs:[{label:'Smelter Building Basics',gx:526,gy:358,tp:'start'}]};
+QD['q_dlc1_1700229']={t:'key',n:'Spirit Trouble',mapId:'dlc1',s:['Main Quest (696° ,345°) Spirit Trouble'],rw:'',locs:[{label:'Spirit Trouble',gx:696,gy:345,tp:'start'}]};
+QD['q_dlc2_620311']={t:'side',n:'Go With the Flow',mapId:'dlc2',s:['Side Quest (444° ,128°) Go With the Flow'],rw:'',locs:[{label:'Go With the Flow',gx:444,gy:128,tp:'start'}]};
+QD['q_dlc2_702294']={t:'side',n:'Sawmill Building Basics',mapId:'dlc2',s:['Side Quest (310° ,145°) Sawmill Building Basics'],rw:'',locs:[{label:'Sawmill Building Basics',gx:310,gy:145,tp:'start'}]};
+QD['q_dlc2_782322']={t:'side',n:'Turn Over A New Leaf',mapId:'dlc2',s:['Side Quest (143° ,172°) Turn Over A New Leaf'],rw:'',locs:[{label:'Turn Over A New Leaf',gx:143,gy:172,tp:'start'}]};
+QD['q_dlc2_794240']={t:'side',n:'Smelter Building Basics',mapId:'dlc2',s:['Side Quest (268° ,162°) Smelter Building Basics'],rw:'',locs:[{label:'Smelter Building Basics',gx:268,gy:162,tp:'start'}]};
+QD['q_dlc2_894108']={t:'side',n:'Strike the Earth',mapId:'dlc2',s:['Side Quest (312° ,196°) Strike the Earth'],rw:'',locs:[{label:'Strike the Earth',gx:312,gy:196,tp:'start'}]};
+QD['q_dlc2_918129']={t:'side',n:'On to the Scrap Heap',mapId:'dlc2',s:['Side Quest (554° ,182°) On to the Scrap Heap'],rw:'',locs:[{label:'On to the Scrap Heap',gx:554,gy:182,tp:'start'}]};
+QD['q_dlc2_924244']={t:'side',n:'The Legend of the Magic Sword',mapId:'dlc2',s:['Side Quest (617° ,185°) The Legend of the Magic Sword'],rw:'',locs:[{label:'The Legend of the Magic Sword',gx:617,gy:185,tp:'start'}]};
+QD['q_dlc2_1194251']={t:'side',n:'Flower Power Forever',mapId:'dlc2',s:['Side Quest (421° ,258°) Flower Power Forever'],rw:'',locs:[{label:'Flower Power Forever',gx:421,gy:258,tp:'start'}]};
+QD['q_dlc2_1282181']={t:'side',n:'Treasure Hunt',mapId:'dlc2',s:['Side Quest (359° ,275°) Treasure Hunt'],rw:'',locs:[{label:'Treasure Hunt',gx:359,gy:275,tp:'start'}]};
+QD['q_dlc3_220365']={t:'side',n:'Lone Wolves',mapId:'dlc3',s:['Side Quest (289° ,88°) Lone Wolves'],rw:'',locs:[{label:'Lone Wolves',gx:289,gy:88,tp:'start'}]};
+QD['q_dlc3_268197']={t:'key',n:'Surrounded Farm',mapId:'dlc3',s:['Main Quest (294° ,102°) Surrounded Farm'],rw:'',locs:[{label:'Surrounded Farm',gx:294,gy:102,tp:'start'}]};
+QD['q_dlc3_366227']={t:'side',n:'Forgotten Wisdom',mapId:'dlc3',s:['Side Quest (311° ,153°) Forgotten Wisdom'],rw:'',locs:[{label:'Forgotten Wisdom',gx:311,gy:153,tp:'start'}]};
+QD['q_dlc3_404211']={t:'side',n:'Stolen Pet',mapId:'dlc3',s:['Side Quest (201° ,175°) Stolen Pet'],rw:'',locs:[{label:'Stolen Pet',gx:201,gy:175,tp:'start'}]};
+
 // ── Filter & Layer groups ──
 const FD=[
   {id:'campfire',lb:'营火',cl:'#ff7043',ic:'icon-campfire'},
@@ -1393,11 +2016,35 @@ function buildMarkersUC(){
   });
 }
 
+// ── DLC marker 构建（通用：传入数据、layer group、坐标转换函数）──
+function buildMarkersDLC(mdArr, layerGroup, toLatLng){
+  const TL={campfire:'🔥 营火',tower:'📡 链塔',quest:'❗ 任务',tomb:'⚰ 古墓',
+    fishing:'🎣 钓鱼',treasure:'💎 宝藏',boss:'☠ BOSS',resource:'⚙ 资源',
+    rift:'✨ 裂隙',farmable:'🌱 可耕种'};
+  mdArr.forEach(m=>{
+    const mk=L.marker(toLatLng(m.gx,m.gy),{icon:mkIcon(m.ic,m.cl)});
+    const q=m.qid?QD[m.qid]:null;
+    let h=`<div class="pi"><div class="pt">${TL[m.tp]||m.tp}</div>`;
+    if(q){const bc={main:'bm',side:'bs',key:'bk'}[m.qt]||'bs';h+=`<span class="pbadge ${bc}">${{main:'主线',side:'支线',key:'关键支线'}[m.qt]}</span><br>`;}
+    const mapLabel=m.r==='dlc1'?'冥界':m.r==='dlc2'?'末日':m.r==='dlc3'?'宠物地下城':'地下城';
+    h+=`<div class="pn">${m.n}</div><div class="pr">📍 ${mapLabel}</div><div class="pc">坐标: ${m.gx}°, ${m.gy}°</div><div class="pd">${m.d}</div>`;
+    if(q){h+=`<div class="pdiv"></div><div class="pqt">${q.n}</div>`;q.s.forEach(s=>{h+=`<div class="ps">${s}</div>`;});h+=`<div class="prew">${q.rw||'—'}</div>`;}
+    h+=`</div>`;
+    mk.bindPopup(h,{maxWidth:340,className:''});
+    mk.on('popupopen',()=>{const el=mk.getElement();if(el){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');}});
+    mk.on('click',()=>{if(m.qid)hlCard(m.qid);});
+    layerGroup.addLayer(mk);
+  });
+}
+
 // ── Cluster toggle ──
 let clusteringEnabled = false; // 默认关闭聚合
 // 用于不聚合模式下直接持有 marker 的普通层组
 const rawGroup = L.layerGroup().addTo(map); // 默认显示散点
 const rawGroupUC = L.layerGroup(); // 地下城 markers（切换到地下城时才加入）
+const rawGroupDLC1 = L.layerGroup();
+const rawGroupDLC2 = L.layerGroup();
+const rawGroupDLC3 = L.layerGroup();
 
 // 地下城区域名称标签层
 const regionLabelGroupUC = L.layerGroup();
@@ -1474,18 +2121,20 @@ function buildFilterBar(){
 
 // ── Region list ──
 let currentRegion=null;
+const REG_BY_MAP={island:REG,undercrown:REG_UC,dlc1:REG_DLC1,dlc2:REG_DLC2,dlc3:REG_DLC3};
+
 function buildRegionList(){
   const list=document.getElementById('regionList');
   list.innerHTML='';
-  const isUC=currentMap==='undercrown';
-  const regions=isUC?REG_UC:REG;
-  const fullBounds=isUC?[[-72,0],[0,112]]:[[-384,0],[0,768]];
+  const cfg=MAP_CFG[currentMap];
+  const regions=REG_BY_MAP[currentMap]||[];
+  const dotColor=currentMap==='island'?'#d4952a':'#a78bfa';
   const all=document.createElement('div');all.className='ritem active';
-  all.innerHTML=`<span class="rdot" style="background:${isUC?'#a78bfa':'#d4952a'}"></span><div><div class="rname">全 部</div></div>`;
+  all.innerHTML=`<span class="rdot" style="background:${dotColor}"></span><div><div class="rname">全 部</div></div>`;
   all.onclick=()=>{
     document.querySelectorAll('.ritem').forEach(e=>e.classList.remove('active'));
     all.classList.add('active');
-    map.fitBounds(fullBounds,{animate:true});
+    map.fitBounds(cfg.fitBounds,{animate:true});
     currentRegion=null;runSearch();
   };
   list.appendChild(all);
@@ -1495,8 +2144,7 @@ function buildRegionList(){
     el.onclick=()=>{
       document.querySelectorAll('.ritem').forEach(e=>e.classList.remove('active'));
       el.classList.add('active');
-      const ll=isUC?g2l_uc(r.gx,r.gy):g2l(r.gx,r.gy);
-      map.setView(ll,4,{animate:true});
+      map.setView(g2l_curr(r.gx,r.gy),4,{animate:true});
       currentRegion=r.cn;runSearch();
     };
     list.appendChild(el);
@@ -1589,7 +2237,8 @@ function buildLocLegend(q){
 function runSearch(){
   const kw=currentKw.trim().toLowerCase();
   const list=document.getElementById('questList');list.innerHTML='';
-  const entries=currentMap==='undercrown'?QENTRIES_UC:QENTRIES;
+  const entriesMap={island:QENTRIES,undercrown:QENTRIES_UC,dlc1:QENTRIES_DLC1,dlc2:QENTRIES_DLC2,dlc3:QENTRIES_DLC3};
+  const entries=entriesMap[currentMap]||QENTRIES;
   const results=entries.filter(e=>{
     if(currentRegion&&e.region!==currentRegion&&e.region!=='通用')return false;
     if(currentTab!=='all'&&e.qt!==currentTab)return false;
@@ -1637,6 +2286,20 @@ function hlCard(qid){
   setTimeout(()=>c.classList.remove('hl'),2000);
 }
 
+// ── DLC 任务条目构建（通用）──
+function buildQEntries(mdArr, mapId){
+  const entries=[];
+  const seen=new Set();
+  mdArr.forEach(m=>{
+    if(m.tp!=='quest'||!m.qid||seen.has(m.qid))return;
+    seen.add(m.qid);const q=QD[m.qid];if(!q)return;
+    const bs=(q.n+' '+(q.en||'')+' '+q.s.join(' ')+' '+q.rw).toLowerCase();
+    entries.push({qid:m.qid,qt:m.qt||q.t,gx:m.gx,gy:m.gy,region:mapId,search:(bs+' '+mapId).toLowerCase()});
+  });
+  entries.sort((a,b)=>({key:0,main:1,side:2}[a.qt]||2)-({key:0,main:1,side:2}[b.qt]||2));
+  return entries;
+}
+
 // ── 地下城任务条目 ──
 const QENTRIES_UC=[];
 const _seenUC=new Set();
@@ -1649,44 +2312,60 @@ MD_UC.forEach(m=>{
 });
 QENTRIES_UC.sort((a,b)=>({key:0,main:1,side:2}[a.qt]||2)-({key:0,main:1,side:2}[b.qt]||2));
 
+// DLC 任务条目（延迟构建：等 buildMarkersDLC 调用后再用 buildQEntries）
+let QENTRIES_DLC1=[],QENTRIES_DLC2=[],QENTRIES_DLC3=[];
+
 // ── 地图切换 ──
+// 各地图配置表
+const MAP_CFG={
+  island:{tile:null, bounds:[[0,0],[-384,768]], fitBounds:[[-384,0],[0,768]],
+    label:'主岛', sidebarTitle:'▸ 地图区域', logoSub:'交互式地图 · 主岛全攻略',
+    rawGroup:null, regGroup:null, isMain:true},
+  undercrown:{tile:null, bounds:UC_BOUNDS, fitBounds:[[-72,0],[0,112]],
+    label:'地下城', sidebarTitle:'▸ 地下城区域', logoSub:'交互式地图 · 地下城',
+    rawGroup:null, regGroup:null},
+  dlc1:{tile:null, bounds:DLC1_BOUNDS, fitBounds:[[-184,0],[0,352]],
+    label:'冥界', sidebarTitle:'▸ 冥界区域', logoSub:'交互式地图 · 冥界',
+    rawGroup:null, regGroup:null},
+  dlc2:{tile:null, bounds:DLC2_BOUNDS, fitBounds:[[-184,0],[0,376]],
+    label:'末日', sidebarTitle:'▸ 末日区域', logoSub:'交互式地图 · 末日之地',
+    rawGroup:null, regGroup:null},
+  dlc3:{tile:null, bounds:DLC3_BOUNDS, fitBounds:[[-96,0],[0,192]],
+    label:'宠物地下城', sidebarTitle:'▸ 宠物地下城区域', logoSub:'交互式地图 · 宠物与地下城',
+    rawGroup:null, regGroup:null},
+};
+
 function switchToMap(mapId){
   if(currentMap===mapId)return;
   clearQuestMarkers();
-  currentMap=mapId;
-  if(mapId==='undercrown'){
-    tileMain.remove();
-    tileUC.addTo(map);
-    map.setMaxBounds(UC_BOUNDS);
-    map.fitBounds([[-72,0],[0,112]]);
-    if(clusteringEnabled){if(map.hasLayer(clusterGroup))clusterGroup.remove();}
-    else{rawGroup.remove();}
-    rawGroupUC.addTo(map);
-    regionLabelGroupUC.addTo(map);
-    document.getElementById('msw-island').classList.remove('active');
-    document.getElementById('msw-undercrown').classList.add('active');
-    document.getElementById('filterBar').style.display='none';
-    document.getElementById('clusterToggle').style.display='none';
-    document.getElementById('topbar').classList.add('undercrown-mode');
-    document.getElementById('sidebarTitle').textContent='▸ 地下城区域';
-    document.querySelector('.logo-sub').textContent='交互式地图 · 地下城';
-  } else {
-    tileUC.remove();
-    tileMain.addTo(map);
-    map.setMaxBounds([[0,0],[-384,768]]);
-    map.fitBounds([[-384,0],[0,768]]);
-    rawGroupUC.remove();
-    regionLabelGroupUC.remove();
-    if(clusteringEnabled){clusterGroup.addTo(map);}
-    else{rawGroup.addTo(map);}
-    document.getElementById('msw-undercrown').classList.remove('active');
-    document.getElementById('msw-island').classList.add('active');
-    document.getElementById('filterBar').style.display='flex';
-    document.getElementById('clusterToggle').style.display='flex';
-    document.getElementById('topbar').classList.remove('undercrown-mode');
-    document.getElementById('sidebarTitle').textContent='▸ 地图区域';
-    document.querySelector('.logo-sub').textContent='交互式地图 · 主岛全攻略';
+  // Hide current map's layers
+  const prev=MAP_CFG[currentMap];
+  if(prev.tile&&map.hasLayer(prev.tile))prev.tile.remove();
+  if(prev.rawGroup&&map.hasLayer(prev.rawGroup))prev.rawGroup.remove();
+  if(prev.regGroup&&map.hasLayer(prev.regGroup))prev.regGroup.remove();
+  if(currentMap==='island'){
+    if(clusteringEnabled&&map.hasLayer(clusterGroup))clusterGroup.remove();
   }
+  currentMap=mapId;
+  const cfg=MAP_CFG[mapId];
+  // Show new map's layers
+  if(cfg.tile)cfg.tile.addTo(map);
+  if(cfg.rawGroup)cfg.rawGroup.addTo(map);
+  if(cfg.regGroup)cfg.regGroup.addTo(map);
+  if(mapId==='island'){
+    if(clusteringEnabled)clusterGroup.addTo(map);
+  }
+  map.setMaxBounds(cfg.bounds);
+  map.fitBounds(cfg.fitBounds);
+  // Update UI
+  document.querySelectorAll('.mswitch').forEach(b=>b.classList.remove('active'));
+  document.getElementById('msw-'+mapId).classList.add('active');
+  const isMain=mapId==='island';
+  document.getElementById('filterBar').style.display=isMain?'flex':'none';
+  document.getElementById('clusterToggle').style.display=isMain?'flex':'none';
+  document.getElementById('topbar').classList.toggle('undercrown-mode',!isMain);
+  document.getElementById('sidebarTitle').textContent=cfg.sidebarTitle;
+  document.querySelector('.logo-sub').textContent=cfg.logoSub;
   currentRegion=null;
   buildRegionList();
   runSearch();
@@ -1701,5 +2380,26 @@ document.getElementById('searchTabs').querySelectorAll('.stab').forEach(btn=>{
   btn.addEventListener('click',()=>{document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentTab=btn.dataset.type;runSearch();});
 });
 
-// ── Init ──
-buildFilterBar();buildRegionList();buildMarkers();buildMarkersUC();runSearch();
+// ── Init: 将实际对象绑定到 MAP_CFG ──
+MAP_CFG.island.tile=tileMain;
+MAP_CFG.island.rawGroup=rawGroup;
+MAP_CFG.undercrown.tile=tileUC;
+MAP_CFG.undercrown.rawGroup=rawGroupUC;
+MAP_CFG.undercrown.regGroup=regionLabelGroupUC;
+MAP_CFG.dlc1.tile=tileDLC1;
+MAP_CFG.dlc1.rawGroup=rawGroupDLC1;
+MAP_CFG.dlc2.tile=tileDLC2;
+MAP_CFG.dlc2.rawGroup=rawGroupDLC2;
+MAP_CFG.dlc3.tile=tileDLC3;
+MAP_CFG.dlc3.rawGroup=rawGroupDLC3;
+
+// 构建所有地图的 markers 和任务条目
+buildFilterBar();buildRegionList();buildMarkers();
+buildMarkersUC();
+buildMarkersDLC(MD_DLC1,rawGroupDLC1,g2l_dlc1);
+buildMarkersDLC(MD_DLC2,rawGroupDLC2,g2l);
+buildMarkersDLC(MD_DLC3,rawGroupDLC3,g2l);
+QENTRIES_DLC1.push(...buildQEntries(MD_DLC1,'dlc1'));
+QENTRIES_DLC2.push(...buildQEntries(MD_DLC2,'dlc2'));
+QENTRIES_DLC3.push(...buildQEntries(MD_DLC3,'dlc3'));
+runSearch();
