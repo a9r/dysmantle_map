@@ -101,12 +101,13 @@ const RPOLYS=[
   {cn:"瓦肯镇",en:"Vulcan",color:"#fca5a5",pts:[[-112,0],[-104,0],[-104,24],[-112,24],[-112,32],[-120,32],[-120,48],[-128,48],[-128,64],[-136,64],[-136,72],[-144,72],[-144,80],[-152,80],[-152,88],[-176,88],[-176,96],[-192,96],[-192,104],[-200,104],[-200,112],[-224,112],[-224,120],[-232,120],[-232,104],[-240,104],[-240,88],[-248,88],[-248,80],[-256,80],[-256,56],[-264,56],[-264,32],[-272,32],[-272,16],[-280,16],[-280,8],[-288,8],[-288,0]],cx:62.8,cy:-196.1},
   {cn:"索拉里斯星",en:"Solaris",color:"#fde68a",pts:[[-296,0],[-288,0],[-288,8],[-280,8],[-280,16],[-272,16],[-272,32],[-264,32],[-264,56],[-256,56],[-256,80],[-248,80],[-248,88],[-240,88],[-240,104],[-232,104],[-232,120],[-224,120],[-224,144],[-232,144],[-232,176],[-216,176],[-216,184],[-208,184],[-208,208],[-216,208],[-216,248],[-208,248],[-208,264],[-224,264],[-224,256],[-232,256],[-232,264],[-240,264],[-240,272],[-248,272],[-248,264],[-256,264],[-256,248],[-264,248],[-264,232],[-272,232],[-272,216],[-280,216],[-280,208],[-288,208],[-288,200],[-296,200],[-296,192],[-320,192],[-320,184],[-344,184],[-344,176],[-360,176],[-360,168],[-384,168],[-384,0]],cx:161.7,cy:-264.6},
 ];
+const regionBorderGroup=L.layerGroup().addTo(map);
 RPOLYS.forEach(rp=>{
-  L.polygon(rp.pts,{color:rp.color,fill:false,weight:1.5,opacity:0.55,interactive:false}).addTo(map);
+  L.polygon(rp.pts,{color:rp.color,fill:false,weight:1.5,opacity:0.55,interactive:false}).addTo(regionBorderGroup);
   const cx=rp.cx,cy=rp.cy;
   L.marker([cy,cx],{icon:L.divIcon({className:'region-label',
     html:`<div style="color:${rp.color};opacity:.65;font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,1);white-space:nowrap;pointer-events:none;">${rp.cn}</div>`,
-    iconAnchor:[30,8]}),interactive:false}).addTo(map);
+    iconAnchor:[30,8]}),interactive:false}).addTo(regionBorderGroup);
 });
 
 // ════════════════════════════════════════════════
@@ -1916,26 +1917,30 @@ const FD=[
 ];
 const AF=new Set(FD.map(f=>f.id));
 
-// Single cluster group
-const clusterGroup=L.markerClusterGroup({
-  chunkedLoading:true,
-  showCoverageOnHover:false,
-  spiderfyOnMaxZoom:false,
-  disableClusteringAtZoom:4,
-  maxClusterRadius:60,
-  iconCreateFunction:function(cluster){
-    const count=cluster.getChildCount();
-    let bg='rgba(76,201,240,.88)',ring='rgba(76,201,240,.3)';
-    if(count>=50){bg='rgba(239,68,68,.88)';ring='rgba(239,68,68,.28)';}
-    else if(count>=10){bg='rgba(212,149,42,.88)';ring='rgba(212,149,42,.28)';}
-    const dim=count>=50?50:count>=10?44:38;
-    const fs=count>=100?13:15;
-    return L.divIcon({
-      html:`<div style="width:${dim}px;height:${dim}px;border-radius:50%;background:${bg};border:2px solid rgba(255,255,255,.28);box-shadow:0 0 0 5px ${ring},0 3px 14px rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:${fs}px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);">${count}</div>`,
-      className:'',iconSize:L.point(dim+10,dim+10),iconAnchor:L.point((dim+10)/2,(dim+10)/2)
-    });
-  }
-}); // 初始不加到 map，默认散点模式
+// 聚合组工厂（各地图共用同一样式）
+function mkClusterOpts(){
+  return {
+    chunkedLoading:true,showCoverageOnHover:false,spiderfyOnMaxZoom:false,
+    disableClusteringAtZoom:4,maxClusterRadius:60,
+    iconCreateFunction:function(cluster){
+      const count=cluster.getChildCount();
+      let bg='rgba(76,201,240,.88)',ring='rgba(76,201,240,.3)';
+      if(count>=50){bg='rgba(239,68,68,.88)';ring='rgba(239,68,68,.28)';}
+      else if(count>=10){bg='rgba(212,149,42,.88)';ring='rgba(212,149,42,.28)';}
+      const dim=count>=50?50:count>=10?44:38;
+      const fs=count>=100?13:15;
+      return L.divIcon({
+        html:`<div style="width:${dim}px;height:${dim}px;border-radius:50%;background:${bg};border:2px solid rgba(255,255,255,.28);box-shadow:0 0 0 5px ${ring},0 3px 14px rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:${fs}px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);">${count}</div>`,
+        className:'',iconSize:L.point(dim+10,dim+10),iconAnchor:L.point((dim+10)/2,(dim+10)/2)
+      });
+    }
+  };
+}
+const clusterGroup=L.markerClusterGroup(mkClusterOpts());     // 主岛，默认不加入 map
+const clusterGroupUC=L.markerClusterGroup(mkClusterOpts());   // 地下城
+const clusterGroupDLC1=L.markerClusterGroup(mkClusterOpts()); // 冥界
+const clusterGroupDLC2=L.markerClusterGroup(mkClusterOpts()); // 末日
+const clusterGroupDLC3=L.markerClusterGroup(mkClusterOpts()); // 宠物地下城
 
 const LG={};
 FD.forEach(f=>{ LG[f.id]=[]; });
@@ -2012,6 +2017,7 @@ function buildMarkersUC(){
     mk.bindPopup(h,{maxWidth:340,className:''});
     mk.on('popupopen',()=>{const el=mk.getElement();if(el){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');}});
     mk.on('click',()=>{if(m.qid)hlCard(m.qid);});
+    markersByMap.undercrown.push(mk);
     rawGroupUC.addLayer(mk);
   });
 }
@@ -2033,6 +2039,7 @@ function buildMarkersDLC(mdArr, layerGroup, toLatLng){
     mk.bindPopup(h,{maxWidth:340,className:''});
     mk.on('popupopen',()=>{const el=mk.getElement();if(el){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');}});
     mk.on('click',()=>{if(m.qid)hlCard(m.qid);});
+    if(markersByMap[m.r])markersByMap[m.r].push(mk);
     layerGroup.addLayer(mk);
   });
 }
@@ -2045,6 +2052,8 @@ const rawGroupUC = L.layerGroup(); // 地下城 markers（切换到地下城时�
 const rawGroupDLC1 = L.layerGroup();
 const rawGroupDLC2 = L.layerGroup();
 const rawGroupDLC3 = L.layerGroup();
+// 各地图 marker 实例列表（用于聚合切换时重建 layer group）
+const markersByMap={undercrown:[],dlc1:[],dlc2:[],dlc3:[]};
 
 // 地下城区域名称标签层
 const regionLabelGroupUC = L.layerGroup();
@@ -2068,28 +2077,46 @@ function toggleClustering(){
   const icon = document.getElementById('clusterIcon');
   const label = document.getElementById('clusterLabel');
 
-  // 获取当前激活类型的所有 marker
-  const activeMks = [];
-  FD.forEach(f => { if(AF.has(f.id)) activeMks.push(...LG[f.id]); });
+  if(currentMap==='island'){
+    // 主岛：按类型过滤的聚合逻辑
+    const activeMks = [];
+    FD.forEach(f => { if(AF.has(f.id)) activeMks.push(...LG[f.id]); });
+    if(clusteringEnabled){
+      rawGroup.clearLayers();
+      rawGroup.remove();
+      activeMks.forEach(mk => clusterGroup.addLayer(mk));
+      if(!map.hasLayer(clusterGroup)) clusterGroup.addTo(map);
+    } else {
+      clusterGroup.clearLayers();
+      clusterGroup.remove();
+      rawGroup.clearLayers();
+      activeMks.forEach(mk => rawGroup.addLayer(mk));
+      rawGroup.addTo(map);
+    }
+  } else {
+    // 非主岛地图：整体聚合切换
+    const cfg=MAP_CFG[currentMap];
+    const mks=markersByMap[currentMap]||[];
+    if(clusteringEnabled){
+      cfg.rawGroup.clearLayers();
+      if(map.hasLayer(cfg.rawGroup))cfg.rawGroup.remove();
+      mks.forEach(mk=>cfg.clusterGroup.addLayer(mk));
+      if(!map.hasLayer(cfg.clusterGroup))cfg.clusterGroup.addTo(map);
+    } else {
+      cfg.clusterGroup.clearLayers();
+      if(map.hasLayer(cfg.clusterGroup))cfg.clusterGroup.remove();
+      mks.forEach(mk=>cfg.rawGroup.addLayer(mk));
+      if(!map.hasLayer(cfg.rawGroup))cfg.rawGroup.addTo(map);
+    }
+  }
 
   if(clusteringEnabled){
-    // 关闭散点模式，恢复聚合
-    rawGroup.clearLayers();
-    rawGroup.remove();
-    activeMks.forEach(mk => clusterGroup.addLayer(mk));
-    if(!map.hasLayer(clusterGroup)) clusterGroup.addTo(map);
     icon.textContent = '⬡';
     label.textContent = '聚合: 开';
     btn.style.background = 'rgba(76,201,240,0.12)';
     btn.style.borderColor = 'var(--border)';
     btn.style.color = 'var(--accent2)';
   } else {
-    // 开启散点模式：从 clusterGroup 移除，直接加到 rawGroup
-    clusterGroup.clearLayers();
-    clusterGroup.remove();
-    rawGroup.clearLayers();
-    activeMks.forEach(mk => rawGroup.addLayer(mk));
-    rawGroup.addTo(map);
     icon.textContent = '○';
     label.textContent = '聚合: 关';
     btn.style.background = 'rgba(239,68,68,0.1)';
@@ -2320,49 +2347,66 @@ let QENTRIES_DLC1=[],QENTRIES_DLC2=[],QENTRIES_DLC3=[];
 const MAP_CFG={
   island:{tile:null, bounds:[[0,0],[-384,768]], fitBounds:[[-384,0],[0,768]],
     label:'主岛', sidebarTitle:'▸ 地图区域', logoSub:'交互式地图 · 主岛全攻略',
-    rawGroup:null, regGroup:null, isMain:true},
+    rawGroup:null, clusterGroup:null, regGroup:null, isMain:true},
   undercrown:{tile:null, bounds:UC_BOUNDS, fitBounds:[[-72,0],[0,112]],
     label:'地下城', sidebarTitle:'▸ 地下城区域', logoSub:'交互式地图 · 地下城',
-    rawGroup:null, regGroup:null},
+    rawGroup:null, clusterGroup:null, regGroup:null},
   dlc1:{tile:null, bounds:DLC1_BOUNDS, fitBounds:[[-184,0],[0,352]],
     label:'冥界', sidebarTitle:'▸ 冥界区域', logoSub:'交互式地图 · 冥界',
-    rawGroup:null, regGroup:null},
+    rawGroup:null, clusterGroup:null, regGroup:null},
   dlc2:{tile:null, bounds:DLC2_BOUNDS, fitBounds:[[-184,0],[0,376]],
     label:'末日', sidebarTitle:'▸ 末日区域', logoSub:'交互式地图 · 末日之地',
-    rawGroup:null, regGroup:null},
+    rawGroup:null, clusterGroup:null, regGroup:null},
   dlc3:{tile:null, bounds:DLC3_BOUNDS, fitBounds:[[-96,0],[0,192]],
     label:'宠物地下城', sidebarTitle:'▸ 宠物地下城区域', logoSub:'交互式地图 · 宠物与地下城',
-    rawGroup:null, regGroup:null},
+    rawGroup:null, clusterGroup:null, regGroup:null},
 };
 
 function switchToMap(mapId){
   if(currentMap===mapId)return;
   clearQuestMarkers();
-  // Hide current map's layers
+  // 移除当前地图所有图层
   const prev=MAP_CFG[currentMap];
   if(prev.tile&&map.hasLayer(prev.tile))prev.tile.remove();
-  if(prev.rawGroup&&map.hasLayer(prev.rawGroup))prev.rawGroup.remove();
   if(prev.regGroup&&map.hasLayer(prev.regGroup))prev.regGroup.remove();
   if(currentMap==='island'){
-    if(clusteringEnabled&&map.hasLayer(clusterGroup))clusterGroup.remove();
+    if(clusteringEnabled){if(map.hasLayer(clusterGroup))clusterGroup.remove();}
+    else{if(map.hasLayer(rawGroup))rawGroup.remove();}
+  } else {
+    if(clusteringEnabled){if(prev.clusterGroup&&map.hasLayer(prev.clusterGroup))prev.clusterGroup.remove();}
+    else{if(prev.rawGroup&&map.hasLayer(prev.rawGroup))prev.rawGroup.remove();}
   }
   currentMap=mapId;
   const cfg=MAP_CFG[mapId];
-  // Show new map's layers
+  // 添加新地图所有图层
   if(cfg.tile)cfg.tile.addTo(map);
-  if(cfg.rawGroup)cfg.rawGroup.addTo(map);
   if(cfg.regGroup)cfg.regGroup.addTo(map);
   if(mapId==='island'){
     if(clusteringEnabled)clusterGroup.addTo(map);
+    else rawGroup.addTo(map);
+  } else {
+    // 每次进入非主岛地图时，根据当前聚合状态重建对应 layer group
+    const mks=markersByMap[mapId]||[];
+    if(clusteringEnabled&&cfg.clusterGroup){
+      cfg.rawGroup.clearLayers();
+      cfg.clusterGroup.clearLayers();
+      mks.forEach(mk=>cfg.clusterGroup.addLayer(mk));
+      cfg.clusterGroup.addTo(map);
+    } else if(cfg.rawGroup){
+      if(cfg.clusterGroup)cfg.clusterGroup.clearLayers();
+      cfg.rawGroup.clearLayers();
+      mks.forEach(mk=>cfg.rawGroup.addLayer(mk));
+      cfg.rawGroup.addTo(map);
+    }
   }
   map.setMaxBounds(cfg.bounds);
   map.fitBounds(cfg.fitBounds);
-  // Update UI
+  // 更新 UI
   document.querySelectorAll('.mswitch').forEach(b=>b.classList.remove('active'));
   document.getElementById('msw-'+mapId).classList.add('active');
   const isMain=mapId==='island';
   document.getElementById('filterBar').style.display=isMain?'flex':'none';
-  document.getElementById('clusterToggle').style.display=isMain?'flex':'none';
+  document.getElementById('clusterToggle').style.display='flex';
   document.getElementById('topbar').classList.toggle('undercrown-mode',!isMain);
   document.getElementById('sidebarTitle').textContent=cfg.sidebarTitle;
   document.querySelector('.logo-sub').textContent=cfg.logoSub;
@@ -2383,15 +2427,20 @@ document.getElementById('searchTabs').querySelectorAll('.stab').forEach(btn=>{
 // ── Init: 将实际对象绑定到 MAP_CFG ──
 MAP_CFG.island.tile=tileMain;
 MAP_CFG.island.rawGroup=rawGroup;
+MAP_CFG.island.regGroup=regionBorderGroup;
 MAP_CFG.undercrown.tile=tileUC;
 MAP_CFG.undercrown.rawGroup=rawGroupUC;
+MAP_CFG.undercrown.clusterGroup=clusterGroupUC;
 MAP_CFG.undercrown.regGroup=regionLabelGroupUC;
 MAP_CFG.dlc1.tile=tileDLC1;
 MAP_CFG.dlc1.rawGroup=rawGroupDLC1;
+MAP_CFG.dlc1.clusterGroup=clusterGroupDLC1;
 MAP_CFG.dlc2.tile=tileDLC2;
 MAP_CFG.dlc2.rawGroup=rawGroupDLC2;
+MAP_CFG.dlc2.clusterGroup=clusterGroupDLC2;
 MAP_CFG.dlc3.tile=tileDLC3;
 MAP_CFG.dlc3.rawGroup=rawGroupDLC3;
+MAP_CFG.dlc3.clusterGroup=clusterGroupDLC3;
 
 // 构建所有地图的 markers 和任务条目
 buildFilterBar();buildRegionList();buildMarkers();
