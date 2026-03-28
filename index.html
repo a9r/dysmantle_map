@@ -17,6 +17,11 @@
     <div class="sep"></div>
     <div class="filters" id="filterBar"></div>
     <div class="ml-auto"></div>
+    <div id="mapSwitcher">
+      <button class="mswitch active" id="msw-island" onclick="switchToMap('island')">主岛</button>
+      <button class="mswitch" id="msw-undercrown" onclick="switchToMap('undercrown')">地下城</button>
+    </div>
+    <div class="sep"></div>
     <button id="clusterToggle" onclick="toggleClustering()" title="开启/关闭图标聚合"
   style="display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:3px;
   border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.1);color:#ef4444;
@@ -28,7 +33,7 @@
   </div>
   <div id="body">
     <div id="sidebar">
-      <div class="sidebar-title">▸ 地图区域</div>
+      <div class="sidebar-title" id="sidebarTitle">▸ 地图区域</div>
       <div id="regionList"></div>
     </div>
     <div id="map">

@@ -11,8 +11,13 @@ const NZ=5,R=12.8;
 const map=L.map('map',{crs:L.CRS.Simple,maxZoom:7,minZoom:1,maxBounds:[[0,0],[-384,768]],maxBoundsViscosity:.7,attributionControl:false,zoomControl:true});
 map.fitBounds([[-384,0],[0,768]]);
 map.zoomControl.setPosition('bottomright');
-L.tileLayer(TILE,{maxNativeZoom:NZ,minNativeZoom:1,tms:false,bounds:[[-384,0],[0,768]],
+const tileMain=L.tileLayer(TILE,{maxNativeZoom:NZ,minNativeZoom:1,tms:false,bounds:[[-384,0],[0,768]],
   errorTileUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'}).addTo(map);
+// 地下城地图配置（参考 OGMods 官方：maxBoundsUndercrown = [[0,0],[(9*-8),(14*8)]]）
+const TILE_UC='https://ogmods.github.io/dysmantle-map/tiles_undercrown/{z}/{x}/{y}.jpg';
+const UC_BOUNDS=[[0,0],[-72,112]];
+const tileUC=L.tileLayer(TILE_UC,{maxNativeZoom:NZ,minNativeZoom:3,tms:false,bounds:UC_BOUNDS,
+  errorTileUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'});
 // Zoom-responsive icon sizing
 // Zoom-reactive icon sizing via CSS custom property + zoom class on map container
 function updateZoomClass(){
@@ -24,11 +29,18 @@ function updateZoomClass(){
 map.on('zoomend',updateZoomClass);
 updateZoomClass();
 
+let currentMap='island';
 map.on('mousemove',e=>{
   const pt=map.project(e.latlng,NZ);
-  document.getElementById('coordDisplay').textContent=`坐标: ${Math.round(pt.x/R)}°, ${Math.round(pt.y/R)}°`;
+  if(currentMap==='undercrown'){
+    document.getElementById('coordDisplay').textContent=`坐标: ${Math.round(pt.x/R)+840}°, ${Math.round(pt.y/R)+300}° [地下城]`;
+  } else {
+    document.getElementById('coordDisplay').textContent=`坐标: ${Math.round(pt.x/R)}°, ${Math.round(pt.y/R)}°`;
+  }
 });
 function g2l(gx,gy){return map.unproject([gx*R,gy*R],NZ);}
+// 地下城坐标转换：官方 tile_x=(gx-840)*R, tile_y=(gy-300)*R
+function g2l_uc(gx,gy){return map.unproject([(gx-840)*R,(gy-300)*R],NZ);}
 
 // ── Icon factory ──
 // Real ogmods PNG icons, sized 32×32 base; CSS zoom classes scale them
@@ -209,8 +221,8 @@ const QD={
   q_floodgates:{t:'side',n:'打开闸门',en:'Open The Floodgates',
     s:['在250°,239°附近触发任务','阅读278°,236°提示','峡湾村230°,160°水槽取控制室钥匙','控制室操作终端257°,244°降低水位'],rw:'26000 XP',
     locs:[{label:'任务触发区域',gx:250,gy:239,tp:'start'},{label:'阅读提示',gx:278,gy:236,tp:'key'},{label:'峡湾村（取钥匙）',gx:230,gy:160,tp:'key'},{label:'控制室（降水位）',gx:257,gy:244,tp:'end'}]},
-  q_under:{t:'key',n:'地下出路',en:'Under and Out',
-    s:['在王冠地下1032°,339°接取','操作终端1009°,346°解锁闸门','前往982°,351°电梯进入王冠'],rw:'20000 XP（解锁王冠）',
+  q_under:{t:'key',n:'地下出路',en:'Under and Out',mapId:'undercrown',
+    s:['在地下城1032°,339°接取','操作终端1009°,346°解锁闸门','前往982°,351°电梯进入王冠'],rw:'20000 XP（解锁王冠）',
     locs:[{label:'接取任务',gx:1032,gy:339,tp:'start'},{label:'操作终端（解锁闸门）',gx:1009,gy:346,tp:'key'},{label:'电梯（进入王冠）',gx:982,gy:351,tp:'end'}]},
   q_kingslog:{t:'side',n:'国王的日志',en:"King's Log",
     s:['收听5处音频日志：902°,430° / 881°,466° / 878°,502° / 963°,477° / 1011°,480°'],rw:'10000 XP',
@@ -246,6 +258,13 @@ const QD={
     s:['完成最终坚守任务，击败所有BOSS','发明全套末日盔甲（王冠套装）','在中枢主基地915°,461°激活发射台','倒计时结束，离开岛屿'],rw:'主线结局（游戏通关）',
     locs:[{label:'发射台（结局触发）',gx:915,gy:461,tp:'end'}]},
 };
+// 地下城专属任务
+QD.q_toxic={t:'key',n:'毒素摧毁者',en:'The Toxic Destroyer',mapId:'undercrown',
+  s:['装备防毒面具（必须）进入地下城','在地下城933°,340°寻找毒素摧毁者BOSS','击败BOSS后获得通往深处的通道'],rw:'15000 XP',
+  locs:[{label:'BOSS：毒素摧毁者',gx:933,gy:340,tp:'boss'}]};
+QD.q_undercrown_explore={t:'side',n:'地下城探索',en:'Undercrown Exploration',mapId:'undercrown',
+  s:['从王冠地区的地下通道入口进入地下城（890°,372° 或 1076°,372°）','找到电梯入口982°,352°返回地面','在旧矿洞窟（迷失洞窟）探索宝藏，坐标约954°-992°,426°-428°'],rw:'探索奖励 + 宝藏物资',
+  locs:[{label:'西入口',gx:890,gy:372,tp:'start'},{label:'东入口',gx:1076,gy:372,tp:'key'},{label:'王冠站电梯',gx:982,gy:352,tp:'end'},{label:'迷失洞窟宝藏①',gx:954,gy:428,tp:'dig'},{label:'迷失洞窟宝藏②',gx:992,gy:426,tp:'dig'}]};
 
 // ════════════════════════════════════════════════
 // QUEST LOCATION MARKERS — temp layer
@@ -290,7 +309,7 @@ function showQuestOnMap(qid){
 
   const pts=[];
   q.locs.forEach((loc,i)=>{
-    const ll=g2l(loc.gx,loc.gy);
+    const ll=currentMap==='undercrown'?g2l_uc(loc.gx,loc.gy):g2l(loc.gx,loc.gy);
     pts.push(ll);
     const color=LOC_COLORS[loc.tp]||'#aaa';
     const emoji=LOC_ICONS[loc.tp]||'📍';
@@ -1227,6 +1246,38 @@ const MD=[
   {tp:'quest',ic:'icon-quest',cl:'#ef4444',gx:915,gy:461,n:'逃离岛屿',r:'中枢',qid:'q_escape',qt:'key',d:'主线结局·激活发射台离开岛屿'},
 ];;
 
+// ════════════════════════════════════════════════
+// 地下城区域数据（OGMods 官方坐标系：gx-840, gy-300 偏移）
+// ════════════════════════════════════════════════
+const REG_UC=[
+  {cn:'地下城西入口',  color:'#86efac',gx:890, gy:372},
+  {cn:'地下城东入口',  color:'#67e8f9',gx:1076,gy:372},
+  {cn:'塌陷隧道',      color:'#c084fc',gx:1007,gy:349},
+  {cn:'装卸区',        color:'#fbbf24',gx:1031,gy:340},
+  {cn:'迷失洞窟',      color:'#a78bfa',gx:969, gy:428},
+  {cn:'王冠站电梯',    color:'#f9a8d4',gx:982, gy:351},
+];
+
+// 地下城标记数据（坐标均为地下城游戏坐标，用 g2l_uc 转换）
+const MD_UC=[
+  {tp:'boss',    ic:'icon-boss',          cl:'#ef4444',gx:933, gy:340,n:'毒素摧毁者',       r:'地下城',qid:'q_toxic',qt:'key',d:'BOSS · The Toxic Destroyer'},
+  {tp:'campfire',ic:'icon-campfire',       cl:'#ff7043',gx:1007,gy:353,n:'电梯桥营火',       r:'地下城',d:'营火 · 电梯桥营火'},
+  {tp:'campfire',ic:'icon-campfire',       cl:'#ff7043',gx:930, gy:371,n:'西部隧道入口营火', r:'地下城',d:'营火 · 西部隧道入口营火'},
+  {tp:'campfire',ic:'icon-campfire',       cl:'#ff7043',gx:1066,gy:370,n:'东部隧道入口营火', r:'地下城',d:'营火 · 东部隧道入口营火'},
+  {tp:'campfire',ic:'icon-campfire',       cl:'#ff7043',gx:975, gy:428,n:'旧矿营火',         r:'地下城',d:'营火 · 旧矿营火'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:972, gy:367,n:'埋藏宝藏',         r:'地下城',d:'埋藏宝藏'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:1009,gy:396,n:'埋藏宝藏',         r:'地下城',d:'埋藏宝藏'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:954, gy:428,n:'埋藏宝藏',         r:'地下城',d:'埋藏宝藏 · 迷失洞窟'},
+  {tp:'treasure',ic:'icon-buried-treasure',cl:'#fbbf24',gx:992, gy:426,n:'埋藏宝藏',         r:'地下城',d:'埋藏宝藏 · 迷失洞窟'},
+  {tp:'treasure',ic:'icon-chest',          cl:'#fbbf24',gx:888, gy:386,n:'限时箱子 (15秒)',   r:'地下城',d:'限时箱子 · 限时: 15秒  奖励: [1 x 蓝眼球]'},
+  {tp:'resource',ic:'icon-terminal',       cl:'#4cc9f0',gx:1010,gy:346,n:'操作终端',          r:'地下城',d:'终端 · 解锁闸门（地下出路任务）'},
+  {tp:'resource',ic:'icon-entryway',       cl:'#86efac',gx:982, gy:352,n:'王冠站电梯',        r:'地下城',d:'入口 · 王冠站电梯（返回地面）'},
+  {tp:'resource',ic:'icon-entryway',       cl:'#86efac',gx:890, gy:372,n:'地下城西入口',      r:'地下城',d:'入口 · 地下城西入口（王冠地区）'},
+  {tp:'resource',ic:'icon-entryway',       cl:'#86efac',gx:1076,gy:372,n:'地下城东入口',      r:'地下城',d:'入口 · 地下城东入口（王冠地区）'},
+  {tp:'quest',   ic:'icon-quest',          cl:'#ef4444',gx:1032,gy:339,n:'地下出路',          r:'地下城',qid:'q_under',qt:'key',d:'关键支线 · 地下出路'},
+  {tp:'quest',   ic:'icon-quest',          cl:'#60a5fa',gx:890, gy:372,n:'地下城探索',        r:'地下城',qid:'q_undercrown_explore',qt:'side',d:'支线 · 地下城探索'},
+];
+
 // ── Filter & Layer groups ──
 const FD=[
   {id:'campfire',lb:'营火',cl:'#ff7043',ic:'icon-campfire'},
@@ -1319,10 +1370,50 @@ function buildMarkers(){
   });
 }
 
+// ── 地下城 marker 构建 ──
+function buildMarkersUC(){
+  const TL={campfire:'🔥 营火',tower:'📡 链塔',quest:'❗ 任务',tomb:'⚰ 古墓',
+    fishing:'🎣 钓鱼',treasure:'💎 宝藏',boss:'☠ BOSS',resource:'⚙ 资源'};
+  MD_UC.forEach(m=>{
+    const mk=L.marker(g2l_uc(m.gx,m.gy),{icon:mkIcon(m.ic,m.cl)});
+    const q=m.qid?QD[m.qid]:null;
+    let h=`<div class="pi"><div class="pt">${TL[m.tp]||m.tp}</div>`;
+    if(q){const bc={main:'bm',side:'bs',key:'bk'}[m.qt]||'bs';h+=`<span class="pbadge ${bc}">${{main:'主线',side:'支线',key:'关键支线'}[m.qt]}</span><br>`;}
+    h+=`<div class="pn">${m.n}</div><div class="pr">📍 地下城</div><div class="pc">坐标: ${m.gx}°, ${m.gy}°</div><div class="pd">${m.d}</div>`;
+    if(q){
+      h+=`<div class="pdiv"></div><div class="pqt">${q.n}</div>`;
+      q.s.forEach(s=>{h+=`<div class="ps">${s}</div>`;});
+      h+=`<div class="prew">${q.rw}</div>`;
+    }
+    h+=`</div>`;
+    mk.bindPopup(h,{maxWidth:340,className:''});
+    mk.on('popupopen',()=>{const el=mk.getElement();if(el){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');}});
+    mk.on('click',()=>{if(m.qid)hlCard(m.qid);});
+    rawGroupUC.addLayer(mk);
+  });
+}
+
 // ── Cluster toggle ──
 let clusteringEnabled = false; // 默认关闭聚合
 // 用于不聚合模式下直接持有 marker 的普通层组
 const rawGroup = L.layerGroup().addTo(map); // 默认显示散点
+const rawGroupUC = L.layerGroup(); // 地下城 markers（切换到地下城时才加入）
+
+// 地下城区域名称标签层
+const regionLabelGroupUC = L.layerGroup();
+[
+  {name:'地下城西入口', gx:890, gy:372},
+  {name:'地下城东入口', gx:1076,gy:372},
+  {name:'塌陷隧道',     gx:1007,gy:349},
+  {name:'装卸区',       gx:1031,gy:340},
+  {name:'迷失洞窟',     gx:969, gy:428},
+  {name:'王冠站电梯',   gx:982, gy:351},
+].forEach(loc=>{
+  L.marker(g2l_uc(loc.gx,loc.gy),{
+    icon:L.divIcon({className:'region-label',
+      html:`<div style="color:#c8d4e0;opacity:.7;font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,1);white-space:nowrap;pointer-events:none;">${loc.name}</div>`,
+      iconAnchor:[30,8]}),interactive:false}).addTo(regionLabelGroupUC);
+});
 
 function toggleClustering(){
   clusteringEnabled = !clusteringEnabled;
@@ -1385,22 +1476,27 @@ function buildFilterBar(){
 let currentRegion=null;
 function buildRegionList(){
   const list=document.getElementById('regionList');
+  list.innerHTML='';
+  const isUC=currentMap==='undercrown';
+  const regions=isUC?REG_UC:REG;
+  const fullBounds=isUC?[[-72,0],[0,112]]:[[-384,0],[0,768]];
   const all=document.createElement('div');all.className='ritem active';
-  all.innerHTML=`<span class="rdot" style="background:#d4952a"></span><div><div class="rname">全 部</div></div>`;
+  all.innerHTML=`<span class="rdot" style="background:${isUC?'#a78bfa':'#d4952a'}"></span><div><div class="rname">全 部</div></div>`;
   all.onclick=()=>{
     document.querySelectorAll('.ritem').forEach(e=>e.classList.remove('active'));
     all.classList.add('active');
-    map.fitBounds([[-384,0],[0,768]],{animate:true});
+    map.fitBounds(fullBounds,{animate:true});
     currentRegion=null;runSearch();
   };
   list.appendChild(all);
-  REG.forEach(r=>{
+  regions.forEach(r=>{
     const el=document.createElement('div');el.className='ritem';
     el.innerHTML=`<span class="rdot" style="background:${r.color}"></span><div><div class="rname">${r.cn}</div></div>`;
     el.onclick=()=>{
       document.querySelectorAll('.ritem').forEach(e=>e.classList.remove('active'));
       el.classList.add('active');
-      map.setView(g2l(r.gx,r.gy),4,{animate:true});
+      const ll=isUC?g2l_uc(r.gx,r.gy):g2l(r.gx,r.gy);
+      map.setView(ll,4,{animate:true});
       currentRegion=r.cn;runSearch();
     };
     list.appendChild(el);
@@ -1493,7 +1589,8 @@ function buildLocLegend(q){
 function runSearch(){
   const kw=currentKw.trim().toLowerCase();
   const list=document.getElementById('questList');list.innerHTML='';
-  const results=QENTRIES.filter(e=>{
+  const entries=currentMap==='undercrown'?QENTRIES_UC:QENTRIES;
+  const results=entries.filter(e=>{
     if(currentRegion&&e.region!==currentRegion&&e.region!=='通用')return false;
     if(currentTab!=='all'&&e.qt!==currentTab)return false;
     if(kw&&!e.search.includes(kw))return false;
@@ -1528,7 +1625,9 @@ function runSearch(){
       </div>`;
     list.appendChild(card);
   });
-  document.getElementById('panelTitleText').textContent=currentRegion?`▸ ${currentRegion} 任务`:'▸ 全部任务攻略';
+  document.getElementById('panelTitleText').textContent=
+    currentMap==='undercrown'?(currentRegion?`▸ ${currentRegion} 任务`:'▸ 地下城任务攻略'):
+    (currentRegion?`▸ ${currentRegion} 任务`:'▸ 全部任务攻略');
 }
 function toggleQ(h,qid){h.nextElementSibling.classList.toggle('open');}
 function hlCard(qid){
@@ -1536,6 +1635,61 @@ function hlCard(qid){
   c.scrollIntoView({behavior:'smooth',block:'center'});
   c.classList.add('hl');c.querySelector('.qb').classList.add('open');
   setTimeout(()=>c.classList.remove('hl'),2000);
+}
+
+// ── 地下城任务条目 ──
+const QENTRIES_UC=[];
+const _seenUC=new Set();
+MD_UC.forEach(m=>{
+  if(m.tp!=='quest'||!m.qid||_seenUC.has(m.qid))return;
+  _seenUC.add(m.qid);const q=QD[m.qid];if(!q)return;
+  const baseSearch=(q.n+' '+(q.en||'')+' '+q.s.join(' ')+' '+q.rw).toLowerCase();
+  QENTRIES_UC.push({qid:m.qid,qt:m.qt||q.t,gx:m.gx,gy:m.gy,region:'地下城',
+    search:(baseSearch+' 地下城').toLowerCase()});
+});
+QENTRIES_UC.sort((a,b)=>({key:0,main:1,side:2}[a.qt]||2)-({key:0,main:1,side:2}[b.qt]||2));
+
+// ── 地图切换 ──
+function switchToMap(mapId){
+  if(currentMap===mapId)return;
+  clearQuestMarkers();
+  currentMap=mapId;
+  if(mapId==='undercrown'){
+    tileMain.remove();
+    tileUC.addTo(map);
+    map.setMaxBounds(UC_BOUNDS);
+    map.fitBounds([[-72,0],[0,112]]);
+    if(clusteringEnabled){if(map.hasLayer(clusterGroup))clusterGroup.remove();}
+    else{rawGroup.remove();}
+    rawGroupUC.addTo(map);
+    regionLabelGroupUC.addTo(map);
+    document.getElementById('msw-island').classList.remove('active');
+    document.getElementById('msw-undercrown').classList.add('active');
+    document.getElementById('filterBar').style.display='none';
+    document.getElementById('clusterToggle').style.display='none';
+    document.getElementById('topbar').classList.add('undercrown-mode');
+    document.getElementById('sidebarTitle').textContent='▸ 地下城区域';
+    document.querySelector('.logo-sub').textContent='交互式地图 · 地下城';
+  } else {
+    tileUC.remove();
+    tileMain.addTo(map);
+    map.setMaxBounds([[0,0],[-384,768]]);
+    map.fitBounds([[-384,0],[0,768]]);
+    rawGroupUC.remove();
+    regionLabelGroupUC.remove();
+    if(clusteringEnabled){clusterGroup.addTo(map);}
+    else{rawGroup.addTo(map);}
+    document.getElementById('msw-undercrown').classList.remove('active');
+    document.getElementById('msw-island').classList.add('active');
+    document.getElementById('filterBar').style.display='flex';
+    document.getElementById('clusterToggle').style.display='flex';
+    document.getElementById('topbar').classList.remove('undercrown-mode');
+    document.getElementById('sidebarTitle').textContent='▸ 地图区域';
+    document.querySelector('.logo-sub').textContent='交互式地图 · 主岛全攻略';
+  }
+  currentRegion=null;
+  buildRegionList();
+  runSearch();
 }
 
 // ── Search events ──
@@ -1548,4 +1702,4 @@ document.getElementById('searchTabs').querySelectorAll('.stab').forEach(btn=>{
 });
 
 // ── Init ──
-buildFilterBar();buildRegionList();buildMarkers();runSearch();
+buildFilterBar();buildRegionList();buildMarkers();buildMarkersUC();runSearch();
