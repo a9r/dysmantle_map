@@ -110,6 +110,41 @@ RPOLYS.forEach(rp=>{
     iconAnchor:[30,8]}),interactive:false}).addTo(regionBorderGroup);
 });
 
+// ── DLC 地图分区线（来自 OGMods data.json area 数据）──
+const RPOLYS_DLC1=[
+  {cn:"封口机",en:"Capper",color:"#fbbf24",pts:[[-40,136],[-32,136],[-32,144],[-24,144],[-24,160],[-16,160],[-16,168],[-8,168],[-8,192],[0,192],[0,272],[-8,272],[-8,288],[-16,288],[-16,304],[-24,304],[-24,312],[-32,312],[-32,304],[-40,304],[-40,288],[-56,288],[-56,280],[-72,280],[-72,288],[-80,288],[-80,280],[-88,280],[-88,264],[-104,264],[-104,256],[-112,256],[-112,264],[-128,264],[-128,232],[-136,232],[-136,224],[-128,224],[-128,216],[-120,216],[-120,232],[-104,232],[-104,224],[-96,224],[-96,216],[-72,216],[-72,208],[-64,208],[-64,192],[-88,192],[-88,176],[-80,176],[-80,168],[-72,168],[-72,152],[-48,152],[-48,136]],cx:228.4,cy:-65.5},
+  {cn:"邪恶的",en:"Sinister",color:"#c084fc",pts:[[-104,80],[-104,72],[-96,72],[-96,80],[-88,80],[-88,88],[-80,88],[-80,96],[-72,96],[-72,104],[-48,104],[-48,120],[-40,120],[-40,128],[-32,128],[-32,136],[-48,136],[-48,152],[-72,152],[-72,168],[-80,168],[-80,176],[-88,176],[-88,192],[-64,192],[-64,208],[-72,208],[-72,216],[-96,216],[-96,224],[-104,224],[-104,232],[-120,232],[-120,216],[-128,216],[-128,224],[-136,224],[-136,232],[-144,232],[-144,240],[-160,240],[-160,256],[-168,256],[-168,264],[-176,264],[-176,272],[-184,272],[-184,264],[-192,264],[-192,144],[-184,144],[-184,136],[-160,136],[-160,128],[-144,128],[-144,112],[-136,112],[-136,88],[-120,88],[-120,80]],cx:168.3,cy:-111.2},
+  {cn:"德克斯特",en:"Dexter",color:"#67e8f9",pts:[[-136,232],[-128,232],[-128,264],[-112,264],[-112,256],[-104,256],[-104,264],[-88,264],[-88,280],[-80,280],[-80,288],[-72,288],[-72,280],[-56,280],[-56,288],[-40,288],[-40,304],[-32,304],[-32,328],[-48,328],[-48,344],[-56,344],[-56,352],[-64,352],[-64,368],[-80,368],[-80,384],[-96,384],[-96,376],[-120,376],[-120,360],[-144,360],[-144,336],[-160,336],[-160,328],[-168,328],[-168,312],[-176,312],[-176,304],[-184,304],[-184,296],[-192,296],[-192,264],[-184,264],[-184,272],[-176,272],[-176,264],[-168,264],[-168,256],[-160,256],[-160,240],[-144,240],[-144,232]],cx:300.2,cy:-117.0},
+];
+const RPOLYS_DLC2=[
+  {cn:"诺娜",en:"Nona",color:"#86efac",pts:[[-8,0],[0,0],[0,152],[-40,152],[-40,144],[-56,144],[-56,152],[-64,152],[-64,160],[-80,160],[-80,136],[-96,136],[-96,104],[-104,104],[-104,96],[-120,96],[-120,72],[-128,72],[-128,64],[-144,64],[-144,48],[-168,48],[-168,32],[-192,32],[-192,0]],cx:92.8,cy:-95.7},
+  {cn:"北德西玛",en:"North Decima",color:"#60a5fa",pts:[[-112,96],[-104,96],[-104,104],[-96,104],[-96,136],[-80,136],[-80,160],[-64,160],[-64,152],[-56,152],[-56,144],[-40,144],[-40,152],[0,152],[0,256],[-24,256],[-24,248],[-40,248],[-40,240],[-56,240],[-56,224],[-72,224],[-72,232],[-80,232],[-80,240],[-104,240],[-104,224],[-112,224],[-112,216],[-120,216],[-120,192],[-128,192],[-128,160],[-120,160],[-120,144],[-128,144],[-128,128],[-120,128],[-120,96]],cx:179.3,cy:-82.1},
+  {cn:"莫塔",en:"Morta",color:"#f87171",pts:[[-64,224],[-56,224],[-56,240],[-40,240],[-40,248],[-24,248],[-24,256],[0,256],[0,384],[-192,384],[-192,296],[-184,296],[-184,288],[-176,288],[-176,280],[-168,280],[-168,272],[-160,272],[-160,264],[-144,264],[-144,256],[-120,256],[-120,240],[-80,240],[-80,232],[-72,232],[-72,224]],cx:266.1,cy:-107.3},
+  {cn:"南德西玛",en:"South Decima",color:"#4cc9f0",pts:[[-176,32],[-168,32],[-168,48],[-144,48],[-144,64],[-128,64],[-128,72],[-120,72],[-120,128],[-128,128],[-128,144],[-120,144],[-120,160],[-128,160],[-128,192],[-120,192],[-120,216],[-112,216],[-112,224],[-104,224],[-104,240],[-120,240],[-120,256],[-144,256],[-144,264],[-160,264],[-160,272],[-168,272],[-168,280],[-176,280],[-176,288],[-184,288],[-184,296],[-192,296],[-192,32]],cx:182.4,cy:-143.1},
+];
+const RPOLYS_DLC3=[
+  {cn:"冰霜之地",en:"Frostarium",color:"#bfdbfe",pts:[[-8,24],[-8,16],[0,16],[0,96],[-16,96],[-16,88],[-24,88],[-24,96],[-40,96],[-40,88],[-48,88],[-48,48],[-40,48],[-40,40],[-32,40],[-32,32],[-16,32],[-16,24]],cx:58.7,cy:-24.9},
+  {cn:"植物园",en:"Arboretum",color:"#86efac",pts:[[-24,96],[-24,88],[-16,88],[-16,96],[0,96],[0,176],[-8,176],[-8,168],[-16,168],[-16,160],[-32,160],[-32,152],[-40,152],[-40,144],[-48,144],[-48,104],[-40,104],[-40,96]],cx:131.6,cy:-24.9},
+  {cn:"荒漠",en:"Desolatum",color:"#fde68a",pts:[[-56,48],[-48,48],[-48,88],[-56,88],[-56,96],[-96,96],[-96,48]],cx:73.1,cy:-65.1},
+  {cn:"玻璃花园",en:"Terrarium",color:"#a5f3fc",pts:[[-64,96],[-56,96],[-56,104],[-48,104],[-48,144],[-96,144],[-96,96]],cx:112.0,cy:-66.3},
+  {cn:"生态中心",en:"Vivarium Nexus",color:"#4ade80",pts:[[-48,88],[-40,88],[-40,104],[-56,104],[-56,88]],cx:94.4,cy:-48.0},
+  {cn:"魔法岛",en:"Isle of Mana",color:"#c084fc",pts:[[-8,0],[0,0],[0,16],[-8,16],[-8,24],[-16,24],[-16,32],[-32,32],[-32,40],[-40,40],[-40,48],[-96,48],[-96,0]],cx:24.6,cy:-30.2},
+  {cn:"末日岛",en:"Isle of Doom",color:"#fca5a5",pts:[[-48,144],[-40,144],[-40,152],[-32,152],[-32,160],[-16,160],[-16,168],[-8,168],[-8,176],[0,176],[0,192],[-96,192],[-96,144]],cx:163.7,cy:-33.2},
+];
+function mkDLCBorderGroup(rpolys){
+  const grp=L.layerGroup();
+  rpolys.forEach(rp=>{
+    L.polygon(rp.pts,{color:rp.color,fill:false,weight:1.5,opacity:0.55,interactive:false}).addTo(grp);
+    L.marker([rp.cy,rp.cx],{icon:L.divIcon({className:'region-label',
+      html:`<div style="color:${rp.color};opacity:.65;font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,1);white-space:nowrap;pointer-events:none;">${rp.cn}</div>`,
+      iconAnchor:[30,8]}),interactive:false}).addTo(grp);
+  });
+  return grp;
+}
+const regionBorderGroupDLC1=mkDLCBorderGroup(RPOLYS_DLC1);
+const regionBorderGroupDLC2=mkDLCBorderGroup(RPOLYS_DLC2);
+const regionBorderGroupDLC3=mkDLCBorderGroup(RPOLYS_DLC3);
+
 // ════════════════════════════════════════════════
 // QUEST DATABASE WITH LOCATIONS
 // Each quest has:
@@ -1461,38 +1496,9 @@ const MD_DLC1=[
 ];
 
 const REG_DLC1=[
-  {cn:'Jalopy Station',color:'#fbbf24',gx:449,gy:265},
-  {cn:'Bunker Station',color:'#fbbf24',gx:875,gy:243},
-  {cn:'Colony Station',color:'#fbbf24',gx:659,gy:91},
-  {cn:'Arrowhead Station',color:'#fbbf24',gx:455,gy:352},
-  {cn:'Southern Crownsville',color:'#fbbf24',gx:567,gy:274},
-  {cn:'Northern Crownsville',color:'#fbbf24',gx:579,gy:211},
-  {cn:'Eastern Farmlands',color:'#86efac',gx:645,gy:244},
-  {cn:'Colony of the Divided',color:'#fbbf24',gx:673,gy:126},
-  {cn:'Foundry Point',color:'#86efac',gx:529,gy:352},
-  {cn:'Crystal Caves',color:'#fbbf24',gx:444,gy:87},
-  {cn:'Ivory Mountain Co.',color:'#86efac',gx:606,gy:247},
-  {cn:'Town Station',color:'#fbbf24',gx:554,gy:321},
-  {cn:'Doc\'s House',color:'#86efac',gx:619,gy:307},
-  {cn:'Shattered Suburbs',color:'#86efac',gx:700,gy:353},
-  {cn:'Lost Forest',color:'#86efac',gx:517,gy:438},
-  {cn:'Apex Gasoline',color:'#86efac',gx:425,gy:272},
-  {cn:'Basin of Solitude',color:'#fbbf24',gx:736,gy:254},
-  {cn:'Cavern of Wishes',color:'#86efac',gx:440,gy:156},
-  {cn:'Farm of Desolation',color:'#86efac',gx:851,gy:290},
-  {cn:'Safe Haven',color:'#86efac',gx:626,gy:80},
-  {cn:'Underworld Entryway',color:'#fbbf24',gx:421,gy:425},
-  {cn:'Passage Valley',color:'#86efac',gx:493,gy:320},
-  {cn:'Derelict Outpost',color:'#86efac',gx:665,gy:176},
-  {cn:'Hidden Workshop',color:'#86efac',gx:350,gy:108},
-  {cn:'Island in the End',color:'#fbbf24',gx:109,gy:250},
-  {cn:'Gorge of the Undead',color:'#86efac',gx:625,gy:338},
-  {cn:'Mortal Roundabout',color:'#86efac',gx:474,gy:274},
-  {cn:'Scavenger Hamlet',color:'#86efac',gx:792,gy:155},
-  {cn:'Scarp of Thieves',color:'#86efac',gx:555,gy:404},
-  {cn:'Plateau of Respite',color:'#86efac',gx:746,gy:333},
-  {cn:'Cliffside Encampment',color:'#86efac',gx:803,gy:295},
-  {cn:'Farm from Afar',color:'#86efac',gx:748,gy:223},
+  {cn:'封口机',color:'#fbbf24',gx:611,gy:164},
+  {cn:'邪恶的',color:'#c084fc',gx:461,gy:278},
+  {cn:'德克斯特',color:'#67e8f9',gx:791,gy:292},
 ];
 
 // ── 末日 (dlc2) ──
@@ -1667,49 +1673,10 @@ const MD_DLC2=[
 ];
 
 const REG_DLC2=[
-  {cn:'Nona Aerial Resupply Depot',color:'#86efac',gx:155,gy:240},
-  {cn:'Decima Aerial Resupply Depot',color:'#86efac',gx:612,gy:325},
-  {cn:'Morta Aerial Resupply Depot',color:'#86efac',gx:637,gy:143},
-  {cn:'Collingwood',color:'#fbbf24',gx:148,gy:147},
-  {cn:'Redwicket',color:'#fbbf24',gx:355,gy:276},
-  {cn:'Rochester',color:'#fbbf24',gx:604,gy:170},
-  {cn:'The Concrete Forest',color:'#86efac',gx:183,gy:77},
-  {cn:'Nona Interior Entrance',color:'#fbbf24',gx:250,gy:102},
-  {cn:'Cooling Substation',color:'#86efac',gx:261,gy:77},
-  {cn:'Conference Area',color:'#86efac',gx:223,gy:82},
-  {cn:'Engineering Section',color:'#86efac',gx:213,gy:110},
-  {cn:'Theoretical Laboratories',color:'#86efac',gx:238,gy:123},
-  {cn:'Defensive System Test Range',color:'#86efac',gx:273,gy:123},
-  {cn:'Loading Area',color:'#86efac',gx:308,gy:135},
-  {cn:'Main Power Station',color:'#86efac',gx:251,gy:156},
-  {cn:'Botanical laboratory',color:'#86efac',gx:425,gy:253},
-  {cn:'Live Specimen Study',color:'#86efac',gx:561,gy:218},
-  {cn:'Guest Lobby',color:'#86efac',gx:456,gy:297},
-  {cn:'Maintenance Section',color:'#86efac',gx:477,gy:243},
-  {cn:'Morgue',color:'#86efac',gx:551,gy:251},
-  {cn:'Holding Pens',color:'#86efac',gx:414,gy:287},
-  {cn:'Settlement Facsimile',color:'#86efac',gx:511,gy:242},
-  {cn:'Decima Shelter Depot',color:'#86efac',gx:477,gy:328},
-  {cn:'Ancient Tomb Excavation',color:'#fbbf24',gx:540,gy:333},
-  {cn:'Drone Control Center',color:'#86efac',gx:570,gy:308},
-  {cn:'Decima-Morta Transit Station',color:'#86efac',gx:581,gy:271},
-  {cn:'Oninoko',color:'#fbbf24',gx:373,gy:396},
-  {cn:'Gillespie',color:'#86efac',gx:278,gy:370},
-  {cn:'Kakola',color:'#86efac',gx:261,gy:320},
-  {cn:'Eastern Jungle Rampart',color:'#86efac',gx:432,gy:370},
-  {cn:'Western Jungle Rampart',color:'#86efac',gx:319,gy:358},
-  {cn:'Coastlab',color:'#fbbf24',gx:480,gy:86},
-  {cn:'Fincher\'s Scrapyard',color:'#86efac',gx:536,gy:122},
-  {cn:'Boreal Country House',color:'#86efac',gx:515,gy:176},
-  {cn:'Auxiliary Intelligence Development',color:'#86efac',gx:685,gy:178},
-  {cn:'Morta Electrical Substation',color:'#86efac',gx:659,gy:251},
-  {cn:'The Gantry Control Room',color:'#86efac',gx:702,gy:250},
-  {cn:'The Gantry',color:'#fbbf24',gx:730,gy:250},
-  {cn:'Advanced Armament Design Bureau',color:'#86efac',gx:692,gy:276},
-  {cn:'Dead End Camp',color:'#86efac',gx:618,gy:289},
-  {cn:'Executive Suite',color:'#86efac',gx:720,gy:300},
-  {cn:'Temporal Research Laboratory',color:'#fbbf24',gx:803,gy:161},
-  {cn:'Morta Complex Main Generator',color:'#86efac',gx:764,gy:221},
+  {cn:'诺娜',color:'#86efac',gx:232,gy:239},
+  {cn:'北德西玛',color:'#60a5fa',gx:448,gy:205},
+  {cn:'莫塔',color:'#f87171',gx:665,gy:268},
+  {cn:'南德西玛',color:'#4cc9f0',gx:456,gy:358},
 ];
 
 // ── 宠物地下城 (dlc3) ──
@@ -1860,43 +1827,33 @@ const MD_DLC3=[
 ];
 
 const REG_DLC3=[
-  {cn:'Rustic Serenity Settlement',color:'#86efac',gx:341,gy:60},
-  {cn:'Arctic Workers\' Retreat',color:'#86efac',gx:197,gy:70},
-  {cn:'The Ward',color:'#86efac',gx:240,gy:120},
-  {cn:'Mirage Labor Barracks',color:'#86efac',gx:194,gy:162},
-  {cn:'Wisdom\'s Grove Academy',color:'#86efac',gx:285,gy:170},
-  {cn:'Pet Cemetery',color:'#86efac',gx:74,gy:170},
-  {cn:'The Lab Scientists\' Villa',color:'#86efac',gx:412,gy:120},
-  {cn:'Secured Retreat',color:'#86efac',gx:409,gy:168},
-  {cn:'Jimmy\'s House',color:'#86efac',gx:152,gy:140},
-  {cn:'Barracks A',color:'#86efac',gx:208,gy:182},
-  {cn:'Barracks B',color:'#86efac',gx:201,gy:155},
-  {cn:'Educators\' Dormitory',color:'#86efac',gx:345,gy:185},
-  {cn:'Students\' Dormitory',color:'#86efac',gx:309,gy:134},
-  {cn:'Principal\'s House',color:'#86efac',gx:269,gy:149},
-  {cn:'Wisdom\'s Library',color:'#86efac',gx:265,gy:166},
-  {cn:'The Bar',color:'#86efac',gx:193,gy:83},
-  {cn:'The Wolf Farm',color:'#86efac',gx:293,gy:98},
+  {cn:'冰霜之地',color:'#bfdbfe',gx:147,gy:62},
+  {cn:'植物园',color:'#86efac',gx:329,gy:62},
+  {cn:'荒漠',color:'#fde68a',gx:183,gy:163},
+  {cn:'玻璃花园',color:'#a5f3fc',gx:280,gy:166},
+  {cn:'生态中心',color:'#4ade80',gx:236,gy:120},
+  {cn:'魔法岛',color:'#c084fc',gx:62,gy:75},
+  {cn:'末日岛',color:'#fca5a5',gx:409,gy:83},
 ];
 
 // DLC Quest Data
-QD['q_dlc1_516186']={t:'side',n:'Farming with Enhanced Seed Bag',mapId:'dlc1',s:['Side Quest (366° ,102°) Farming with Enhanced Seed Bag'],rw:'',locs:[{label:'Farming with Enhanced Seed Bag',gx:366,gy:102,tp:'start'}]};
+QD['q_dlc1_516186']={t:'side',n:'使用增强型种子袋',en:'Farming with Enhanced Seed Bag',mapId:'dlc1',s:['Side Quest (366° ,102°) Farming with Enhanced Seed Bag'],rw:'',locs:[{label:'使用增强型种子袋',gx:366,gy:102,tp:'start'}]};
 QD['q_dlc1_548169']={t:'side',n:'Sawmill Building Basics',mapId:'dlc1',s:['Side Quest (684° ,109°) Sawmill Building Basics'],rw:'',locs:[{label:'Sawmill Building Basics',gx:683,gy:109,tp:'start'}]};
-QD['q_dlc1_846171']={t:'side',n:'Vault into Past',mapId:'dlc1',s:['Side Quest (793° ,165°) Vault into Past'],rw:'',locs:[{label:'Vault into Past',gx:793,gy:165,tp:'start'}]};
+QD['q_dlc1_846171']={t:'side',n:'往事储存库',en:'Vault into Past',mapId:'dlc1',s:['Side Quest (793° ,165°) Vault into Past'],rw:'',locs:[{label:'往事储存库',gx:793,gy:165,tp:'start'}]};
 QD['q_dlc1_1118254']={t:'side',n:'Sawmill Building Basics',mapId:'dlc1',s:['Side Quest (640° ,226°) Sawmill Building Basics'],rw:'',locs:[{label:'Sawmill Building Basics',gx:640,gy:226,tp:'start'}]};
-QD['q_dlc1_1502119']={t:'side',n:'Farming with Enhanced Seed Bag',mapId:'dlc1',s:['Side Quest (620° ,312°) Farming with Enhanced Seed Bag'],rw:'',locs:[{label:'Farming with Enhanced Seed Bag',gx:620,gy:311,tp:'start'}]};
-QD['q_dlc1_1584342']={t:'side',n:'Desperate Existence',mapId:'dlc1',s:['Side Quest (487° ,334°) Desperate Existence'],rw:'',locs:[{label:'Desperate Existence',gx:487,gy:334,tp:'start'}]};
+QD['q_dlc1_1502119']={t:'side',n:'使用增强型种子袋',en:'Farming with Enhanced Seed Bag',mapId:'dlc1',s:['Side Quest (620° ,312°) Farming with Enhanced Seed Bag'],rw:'',locs:[{label:'使用增强型种子袋',gx:620,gy:311,tp:'start'}]};
+QD['q_dlc1_1584342']={t:'side',n:'绝望的存在',en:'Desperate Existence',mapId:'dlc1',s:['Side Quest (487° ,334°) Desperate Existence'],rw:'',locs:[{label:'绝望的存在',gx:487,gy:334,tp:'start'}]};
 QD['q_dlc1_1684049']={t:'side',n:'Smelter Building Basics',mapId:'dlc1',s:['Side Quest (526° ,358°) Smelter Building Basics'],rw:'',locs:[{label:'Smelter Building Basics',gx:526,gy:358,tp:'start'}]};
-QD['q_dlc1_1700229']={t:'key',n:'Spirit Trouble',mapId:'dlc1',s:['Main Quest (696° ,345°) Spirit Trouble'],rw:'',locs:[{label:'Spirit Trouble',gx:696,gy:345,tp:'start'}]};
-QD['q_dlc2_620311']={t:'side',n:'Go With the Flow',mapId:'dlc2',s:['Side Quest (444° ,128°) Go With the Flow'],rw:'',locs:[{label:'Go With the Flow',gx:444,gy:128,tp:'start'}]};
+QD['q_dlc1_1700229']={t:'key',n:'精神问题',en:'Spirit Trouble',mapId:'dlc1',s:['Main Quest (696° ,345°) Spirit Trouble'],rw:'',locs:[{label:'精神问题',gx:696,gy:345,tp:'start'}]};
+QD['q_dlc2_620311']={t:'side',n:'跟着流走',en:'Go With the Flow',mapId:'dlc2',s:['Side Quest (444° ,128°) Go With the Flow'],rw:'',locs:[{label:'跟着流走',gx:444,gy:128,tp:'start'}]};
 QD['q_dlc2_702294']={t:'side',n:'Sawmill Building Basics',mapId:'dlc2',s:['Side Quest (310° ,145°) Sawmill Building Basics'],rw:'',locs:[{label:'Sawmill Building Basics',gx:310,gy:145,tp:'start'}]};
-QD['q_dlc2_782322']={t:'side',n:'Turn Over A New Leaf',mapId:'dlc2',s:['Side Quest (143° ,172°) Turn Over A New Leaf'],rw:'',locs:[{label:'Turn Over A New Leaf',gx:143,gy:172,tp:'start'}]};
+QD['q_dlc2_782322']={t:'side',n:'翻开新一页',en:'Turn Over A New Leaf',mapId:'dlc2',s:['Side Quest (143° ,172°) Turn Over A New Leaf'],rw:'',locs:[{label:'翻开新一页',gx:143,gy:172,tp:'start'}]};
 QD['q_dlc2_794240']={t:'side',n:'Smelter Building Basics',mapId:'dlc2',s:['Side Quest (268° ,162°) Smelter Building Basics'],rw:'',locs:[{label:'Smelter Building Basics',gx:268,gy:162,tp:'start'}]};
-QD['q_dlc2_894108']={t:'side',n:'Strike the Earth',mapId:'dlc2',s:['Side Quest (312° ,196°) Strike the Earth'],rw:'',locs:[{label:'Strike the Earth',gx:312,gy:196,tp:'start'}]};
-QD['q_dlc2_918129']={t:'side',n:'On to the Scrap Heap',mapId:'dlc2',s:['Side Quest (554° ,182°) On to the Scrap Heap'],rw:'',locs:[{label:'On to the Scrap Heap',gx:554,gy:182,tp:'start'}]};
-QD['q_dlc2_924244']={t:'side',n:'The Legend of the Magic Sword',mapId:'dlc2',s:['Side Quest (617° ,185°) The Legend of the Magic Sword'],rw:'',locs:[{label:'The Legend of the Magic Sword',gx:617,gy:185,tp:'start'}]};
-QD['q_dlc2_1194251']={t:'side',n:'Flower Power Forever',mapId:'dlc2',s:['Side Quest (421° ,258°) Flower Power Forever'],rw:'',locs:[{label:'Flower Power Forever',gx:421,gy:258,tp:'start'}]};
-QD['q_dlc2_1282181']={t:'side',n:'Treasure Hunt',mapId:'dlc2',s:['Side Quest (359° ,275°) Treasure Hunt'],rw:'',locs:[{label:'Treasure Hunt',gx:359,gy:275,tp:'start'}]};
+QD['q_dlc2_894108']={t:'side',n:'打击地球',en:'Strike the Earth',mapId:'dlc2',s:['Side Quest (312° ,196°) Strike the Earth'],rw:'',locs:[{label:'打击地球',gx:312,gy:196,tp:'start'}]};
+QD['q_dlc2_918129']={t:'side',n:'前往废铁场',en:'On to the Scrap Heap',mapId:'dlc2',s:['Side Quest (554° ,182°) On to the Scrap Heap'],rw:'',locs:[{label:'前往废铁场',gx:554,gy:182,tp:'start'}]};
+QD['q_dlc2_924244']={t:'side',n:'魔剑传说',en:'The Legend of the Magic Sword',mapId:'dlc2',s:['Side Quest (617° ,185°) The Legend of the Magic Sword'],rw:'',locs:[{label:'魔剑传说',gx:617,gy:185,tp:'start'}]};
+QD['q_dlc2_1194251']={t:'side',n:'花之力永存',en:'Flower Power Forever',mapId:'dlc2',s:['Side Quest (421° ,258°) Flower Power Forever'],rw:'',locs:[{label:'花之力永存',gx:421,gy:258,tp:'start'}]};
+QD['q_dlc2_1282181']={t:'side',n:'寻宝之旅',en:'Treasure Hunt',mapId:'dlc2',s:['Side Quest (359° ,275°) Treasure Hunt'],rw:'',locs:[{label:'寻宝之旅',gx:359,gy:275,tp:'start'}]};
 QD['q_dlc3_220365']={t:'side',n:'Lone Wolves',mapId:'dlc3',s:['Side Quest (289° ,88°) Lone Wolves'],rw:'',locs:[{label:'Lone Wolves',gx:289,gy:88,tp:'start'}]};
 QD['q_dlc3_268197']={t:'key',n:'Surrounded Farm',mapId:'dlc3',s:['Main Quest (294° ,102°) Surrounded Farm'],rw:'',locs:[{label:'Surrounded Farm',gx:294,gy:102,tp:'start'}]};
 QD['q_dlc3_366227']={t:'side',n:'Forgotten Wisdom',mapId:'dlc3',s:['Side Quest (311° ,153°) Forgotten Wisdom'],rw:'',locs:[{label:'Forgotten Wisdom',gx:311,gy:153,tp:'start'}]};
@@ -2033,7 +1990,8 @@ function buildMarkersDLC(mdArr, layerGroup, toLatLng){
     let h=`<div class="pi"><div class="pt">${TL[m.tp]||m.tp}</div>`;
     if(q){const bc={main:'bm',side:'bs',key:'bk'}[m.qt]||'bs';h+=`<span class="pbadge ${bc}">${{main:'主线',side:'支线',key:'关键支线'}[m.qt]}</span><br>`;}
     const mapLabel=m.r==='dlc1'?'冥界':m.r==='dlc2'?'末日':m.r==='dlc3'?'宠物地下城':'地下城';
-    h+=`<div class="pn">${m.n}</div><div class="pr">📍 ${mapLabel}</div><div class="pc">坐标: ${m.gx}°, ${m.gy}°</div><div class="pd">${m.d}</div>`;
+    const displayName=(m.tp==='quest'&&q)?q.n:m.n;
+    h+=`<div class="pn">${displayName}</div><div class="pr">📍 ${mapLabel}</div><div class="pc">坐标: ${m.gx}°, ${m.gy}°</div><div class="pd">${m.d}</div>`;
     if(q){h+=`<div class="pdiv"></div><div class="pqt">${q.n}</div>`;q.s.forEach(s=>{h+=`<div class="ps">${s}</div>`;});h+=`<div class="prew">${q.rw||'—'}</div>`;}
     h+=`</div>`;
     mk.bindPopup(h,{maxWidth:340,className:''});
@@ -2172,7 +2130,8 @@ function buildRegionList(){
       document.querySelectorAll('.ritem').forEach(e=>e.classList.remove('active'));
       el.classList.add('active');
       map.setView(g2l_curr(r.gx,r.gy),4,{animate:true});
-      currentRegion=r.cn;runSearch();
+      // 非主岛地图不按区域过滤任务（DLC 任务无法对应子区域）
+      currentRegion=currentMap==='island'?r.cn:null;runSearch();
     };
     list.appendChild(el);
   });
@@ -2435,12 +2394,15 @@ MAP_CFG.undercrown.regGroup=regionLabelGroupUC;
 MAP_CFG.dlc1.tile=tileDLC1;
 MAP_CFG.dlc1.rawGroup=rawGroupDLC1;
 MAP_CFG.dlc1.clusterGroup=clusterGroupDLC1;
+MAP_CFG.dlc1.regGroup=regionBorderGroupDLC1;
 MAP_CFG.dlc2.tile=tileDLC2;
 MAP_CFG.dlc2.rawGroup=rawGroupDLC2;
 MAP_CFG.dlc2.clusterGroup=clusterGroupDLC2;
+MAP_CFG.dlc2.regGroup=regionBorderGroupDLC2;
 MAP_CFG.dlc3.tile=tileDLC3;
 MAP_CFG.dlc3.rawGroup=rawGroupDLC3;
 MAP_CFG.dlc3.clusterGroup=clusterGroupDLC3;
+MAP_CFG.dlc3.regGroup=regionBorderGroupDLC3;
 
 // 构建所有地图的 markers 和任务条目
 buildFilterBar();buildRegionList();buildMarkers();
