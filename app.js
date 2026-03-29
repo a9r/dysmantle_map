@@ -8,14 +8,17 @@ const TILE='https://ogmods.github.io/dysmantle-map/tiles/{z}/{x}/{y}.jpg';
 const IBASE='https://ogmods.github.io/dysmantle-map/images/icons/';
 const NZ=5,R=12.8;
 const ISLAND_BOUNDS=[[0,0],[-384,768]];
-// 仅冥界/末日：OGMods 同款 maxBounds 下贴边拖动易回弹；略 pad + 降粘度。其余地图用严格边界与默认粘度。
-const DLC12_PAD=0.03;
+// 仅冥界/末日：贴南缘（lat 较小一侧）拖动易回弹；仅向南扩展 maxBounds，上/左/右与 OGMods 一致。降粘度。
+const DLC12_PAD_SOUTH_RATIO=0.03;
 const VISC_DLC12=0.38;
 const VISC_DEFAULT=0.55;
 function maxBoundsForMap(mapId,corners){
   const b=L.latLngBounds(corners[0],corners[1]);
-  if(mapId==='dlc1'||mapId==='dlc2')return b.pad(DLC12_PAD);
-  return b;
+  if(mapId!=='dlc1'&&mapId!=='dlc2')return b;
+  const south=b.getSouth(), west=b.getWest(), north=b.getNorth(), east=b.getEast();
+  const h=Math.abs(north-south);
+  const padSouth=h*DLC12_PAD_SOUTH_RATIO;
+  return L.latLngBounds([south-padSouth, west], [north, east]);
 }
 const map=L.map('map',{crs:L.CRS.Simple,maxZoom:7,minZoom:1,maxBounds:ISLAND_BOUNDS,maxBoundsViscosity:VISC_DEFAULT,attributionControl:false,zoomControl:true});
 map.fitBounds([[-384,0],[0,768]]);
