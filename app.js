@@ -7,8 +7,17 @@ if ('serviceWorker' in navigator) {
 const TILE='https://ogmods.github.io/dysmantle-map/tiles/{z}/{x}/{y}.jpg';
 const IBASE='https://ogmods.github.io/dysmantle-map/images/icons/';
 const NZ=5,R=12.8;
-
-const map=L.map('map',{crs:L.CRS.Simple,maxZoom:7,minZoom:1,maxBounds:[[0,0],[-384,768]],maxBoundsViscosity:.7,attributionControl:false,zoomControl:true});
+const ISLAND_BOUNDS=[[0,0],[-384,768]];
+// 仅冥界/末日：OGMods 同款 maxBounds 下贴边拖动易回弹；略 pad + 降粘度。其余地图用严格边界与默认粘度。
+const DLC12_PAD=0.03;
+const VISC_DLC12=0.38;
+const VISC_DEFAULT=0.55;
+function maxBoundsForMap(mapId,corners){
+  const b=L.latLngBounds(corners[0],corners[1]);
+  if(mapId==='dlc1'||mapId==='dlc2')return b.pad(DLC12_PAD);
+  return b;
+}
+const map=L.map('map',{crs:L.CRS.Simple,maxZoom:7,minZoom:1,maxBounds:ISLAND_BOUNDS,maxBoundsViscosity:VISC_DEFAULT,attributionControl:false,zoomControl:true});
 map.fitBounds([[-384,0],[0,768]]);
 map.zoomControl.setPosition('bottomright');
 const tileMain=L.tileLayer(TILE,{maxNativeZoom:NZ,minNativeZoom:1,tms:false,bounds:[[-384,0],[0,768]],
@@ -2304,7 +2313,7 @@ let QENTRIES_DLC1=[],QENTRIES_DLC2=[],QENTRIES_DLC3=[];
 // ── 地图切换 ──
 // 各地图配置表
 const MAP_CFG={
-  island:{tile:null, bounds:[[0,0],[-384,768]], fitBounds:[[-384,0],[0,768]],
+  island:{tile:null, bounds:ISLAND_BOUNDS, fitBounds:[[-384,0],[0,768]],
     label:'主岛', sidebarTitle:'▸ 地图区域', logoSub:'交互式地图 · 主岛全攻略',
     rawGroup:null, clusterGroup:null, regGroup:null, isMain:true},
   undercrown:{tile:null, bounds:UC_BOUNDS, fitBounds:[[-72,0],[0,112]],
@@ -2358,8 +2367,10 @@ function switchToMap(mapId){
       cfg.rawGroup.addTo(map);
     }
   }
-  map.setMaxBounds(cfg.bounds);
+  map.setMaxBounds(maxBoundsForMap(mapId,cfg.bounds));
+  map.options.maxBoundsViscosity=(mapId==='dlc1'||mapId==='dlc2')?VISC_DLC12:VISC_DEFAULT;
   map.fitBounds(cfg.fitBounds);
+  map.invalidateSize({animate:false});
   // 更新 UI
   document.querySelectorAll('.mswitch').forEach(b=>b.classList.remove('active'));
   document.getElementById('msw-'+mapId).classList.add('active');
