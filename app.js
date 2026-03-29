@@ -2414,3 +2414,50 @@ QENTRIES_DLC1.push(...buildQEntries(MD_DLC1,'dlc1'));
 QENTRIES_DLC2.push(...buildQEntries(MD_DLC2,'dlc2'));
 QENTRIES_DLC3.push(...buildQEntries(MD_DLC3,'dlc3'));
 runSearch();
+
+// ── 全屏模式切换 ──────────────────────────────────────────
+function toggleFullscreen(){
+  const isFS=document.getElementById('app').classList.toggle('fullscreen');
+  document.getElementById('fullscreenExitBtn').style.display=isFS?'flex':'none';
+  setTimeout(()=>map.invalidateSize(),260);
+}
+
+// ── 移动端侧栏抽屉切换 ───────────────────────────────────
+function toggleMobileSidebar(){
+  const sb=document.getElementById('sidebar');
+  const qp=document.getElementById('questPanel');
+  const ov=document.getElementById('mobileOverlay');
+  const mobBtn=document.getElementById('mobSidebarBtn');
+  const opening=!sb.classList.contains('open');
+  sb.classList.toggle('open',opening);
+  qp.classList.remove('open');
+  document.getElementById('mobQuestBtn').classList.remove('active');
+  ov.classList.toggle('show',opening);
+  mobBtn.classList.toggle('active',opening);
+  if(!opening) setTimeout(()=>map.invalidateSize(),260);
+}
+
+// ── 移动端任务面板抽屉切换 ────────────────────────────────
+function toggleMobileQuest(){
+  const qp=document.getElementById('questPanel');
+  const sb=document.getElementById('sidebar');
+  const ov=document.getElementById('mobileOverlay');
+  const mobBtn=document.getElementById('mobQuestBtn');
+  const opening=!qp.classList.contains('open');
+  qp.classList.toggle('open',opening);
+  sb.classList.remove('open');
+  document.getElementById('mobSidebarBtn').classList.remove('active');
+  ov.classList.toggle('show',opening);
+  mobBtn.classList.toggle('active',opening);
+  if(!opening) setTimeout(()=>map.invalidateSize(),260);
+}
+
+// ── 关闭所有移动端面板 ────────────────────────────────────
+function closeAllMobilePanels(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('questPanel').classList.remove('open');
+  document.getElementById('mobileOverlay').classList.remove('show');
+  document.getElementById('mobSidebarBtn').classList.remove('active');
+  document.getElementById('mobQuestBtn').classList.remove('active');
+  setTimeout(()=>map.invalidateSize(),260);
+}

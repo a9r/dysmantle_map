@@ -260,3 +260,130 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   100%{ transform:scale(1) rotate(0); opacity:1; }
 }
 .leaflet-marker-icon:not(.dysmap-icon){ animation:cluster-pop .25s cubic-bezier(.34,1.56,.64,1); }
+
+/* ══════════════════════════════════════════════════
+   全屏模式
+══════════════════════════════════════════════════ */
+#fullscreenBtn{
+  display:flex;align-items:center;justify-content:center;
+  width:28px;height:28px;padding:0;border-radius:3px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--dim);font-size:15px;cursor:pointer;
+  transition:all .15s;flex-shrink:0;
+}
+#fullscreenBtn:hover{border-color:var(--accent2);color:var(--accent2);}
+
+#fullscreenExitBtn{
+  display:none;position:absolute;top:10px;right:10px;z-index:900;
+  background:rgba(10,14,20,.92);border:1px solid var(--border);
+  color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;
+  font-family:'Noto Sans SC',sans-serif;font-size:12px;
+  align-items:center;gap:5px;transition:all .15s;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+#fullscreenExitBtn:hover{border-color:var(--accent2);color:var(--accent2);}
+
+#app.fullscreen #topbar,
+#app.fullscreen #sidebar,
+#app.fullscreen #questPanel{ display:none !important; }
+#app.fullscreen #body{ height:100vh; }
+#app.fullscreen #fullscreenExitBtn{ display:flex; }
+
+/* ══════════════════════════════════════════════════
+   移动端 FAB 按钮（桌面默认隐藏）
+══════════════════════════════════════════════════ */
+.mob-fab{
+  display:none;align-items:center;justify-content:center;
+  width:28px;height:28px;padding:0;border-radius:3px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--dim);font-size:14px;cursor:pointer;
+  transition:all .15s;flex-shrink:0;
+}
+.mob-fab:hover{border-color:var(--accent);color:var(--accent);}
+.mob-fab.active{border-color:var(--accent);color:var(--accent);background:rgba(212,149,42,.12);}
+
+/* 移动端半透明遮罩 */
+#mobileOverlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.55);z-index:1499;
+  backdrop-filter:blur(2px);
+}
+#mobileOverlay.show{ display:block; }
+
+/* ══════════════════════════════════════════════════
+   响应式：≤ 768px（平板竖屏 / 手机横屏）
+══════════════════════════════════════════════════ */
+@media (max-width:768px){
+  /* 顶栏：精简 */
+  .logo-sub{ display:none; }
+  .sep{ display:none; }
+  #coordDisplay{ display:none; }
+  .mob-fab{ display:flex; }
+
+  /* 过滤芯片：顶栏下方独立一行，横向可滚动 */
+  #topbar{ flex-wrap:wrap;height:auto;padding:6px 10px;gap:6px; }
+  #filterBar{
+    order:10;width:100%;
+    overflow-x:auto;flex-wrap:nowrap;
+    padding:2px 0 4px;
+    scrollbar-width:none;
+  }
+  #filterBar::-webkit-scrollbar{ display:none; }
+
+  /* 地图占满主内容区 */
+  #body{ position:relative; }
+  #map{ flex:1;width:100%; }
+
+  /* 侧栏：固定左侧抽屉 */
+  #sidebar{
+    position:fixed;left:-200px;top:0;height:100%;
+    width:200px;z-index:1500;
+    transition:left .25s ease;
+    border-right:1px solid var(--border);
+    box-shadow:4px 0 20px rgba(0,0,0,.5);
+  }
+  #sidebar.open{ left:0; }
+
+  /* 任务面板：固定右侧抽屉 */
+  #questPanel{
+    position:fixed;right:-310px;top:0;height:100%;
+    width:310px;z-index:1500;
+    transition:right .25s ease;
+    border-left:1px solid var(--border);
+    box-shadow:-4px 0 20px rgba(0,0,0,.5);
+  }
+  #questPanel.open{ right:0; }
+
+  /* 弹窗宽度适配小屏 */
+  .leaflet-popup-content-wrapper{ min-width:220px;max-width:280px; }
+}
+
+/* ══════════════════════════════════════════════════
+   响应式：≤ 480px（手机竖屏）
+══════════════════════════════════════════════════ */
+@media (max-width:480px){
+  #topbar{ padding:5px 8px;gap:5px; }
+  .logo{ font-size:16px;letter-spacing:2px; }
+
+  /* 地图切换器：横向可滚动，不换行 */
+  #mapSwitcher{
+    overflow-x:auto;flex-wrap:nowrap;
+    scrollbar-width:none;max-width:calc(100vw - 140px);
+  }
+  #mapSwitcher::-webkit-scrollbar{ display:none; }
+  .mswitch{ padding:3px 8px;font-size:10px; }
+
+  /* 更紧凑的聚合按钮 */
+  #clusterToggle{ padding:3px 7px;font-size:10px; }
+  #clusterLabel{ display:none; }
+
+  /* 任务面板全宽 */
+  #questPanel{ width:100%;right:-100%; }
+  #questPanel.open{ right:0; }
+
+  /* 侧栏全宽 */
+  #sidebar{ width:220px;left:-220px; }
+
+  /* 弹窗适配小屏 */
+  .leaflet-popup-content-wrapper{ min-width:180px;max-width:calc(100vw - 40px); }
+}

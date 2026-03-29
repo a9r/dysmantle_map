@@ -33,13 +33,18 @@
   <span id="clusterIcon">○</span><span id="clusterLabel">聚合: 关</span>
 </button>
 <div class="coord-display" id="coordDisplay">坐标: — , —</div>
+    <button class="mob-fab" id="mobSidebarBtn" onclick="toggleMobileSidebar()" title="区域列表">☰</button>
+    <button class="mob-fab" id="mobQuestBtn" onclick="toggleMobileQuest()" title="任务面板">📋</button>
+    <button id="fullscreenBtn" onclick="toggleFullscreen()" title="全屏地图">⛶</button>
   </div>
+  <div id="mobileOverlay" onclick="closeAllMobilePanels()"></div>
   <div id="body">
     <div id="sidebar">
       <div class="sidebar-title" id="sidebarTitle">▸ 地图区域</div>
       <div id="regionList"></div>
     </div>
     <div id="map">
+      <button id="fullscreenExitBtn" onclick="toggleFullscreen()" title="退出全屏">✕ 退出全屏</button>
       <div id="clearQuestBtn">
         <span>✕</span><span id="clearQuestLabel">清除任务标记</span>
       </div>
